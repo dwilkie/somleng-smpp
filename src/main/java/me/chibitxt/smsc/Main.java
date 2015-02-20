@@ -26,6 +26,9 @@ import java.util.Properties;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -176,10 +179,37 @@ public class Main {
 
   private static final BlockingQueue startWorkerQueue() {
     final BlockingQueue blockingQueue = new LinkedBlockingQueue<String>();
+    final ConfigBuilder configBuilder = new ConfigBuilder();
+
+    try {
+      URI redisUrl = new URI(System.getProperty("REDIS_PROVIDER", "127.0.0.1"));
+
+      String redisHost = redisUrl.getHost();
+      int redisPort = redisUrl.getPort();
+      String redisUserInfo = redisUrl.getUserInfo();
+
+      if (redisHost != null) {
+        configBuilder.withHost(redisHost);
+      }
+
+      if (redisPort > -1) {
+        configBuilder.withPort(redisPort);
+      }
+
+      if (redisUserInfo != null) {
+        configBuilder.withPassword(redisUserInfo);
+      }
+    }
+    catch (URISyntaxException e) {
+      System.err.println(e.toString());
+      System.exit(1);
+    }
+
+    final Config config = configBuilder.build();
+
+    System.out.println(config.getURI());
 
     // Jesque Configuration
-    final Config config = new ConfigBuilder().build();
-
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
 
     final Worker worker = new WorkerImpl(config,
