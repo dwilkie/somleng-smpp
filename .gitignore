@@ -1,6 +1,7 @@
 *~
-target/
 .classpath
 .project
 .settings/
 vendor/ruby
+target/*
+!/target/*.jar
