@@ -86,17 +86,16 @@ public class Main {
 
     final ExecutorService executorService = Executors.newFixedThreadPool(totalNumOfThreads);
 
-    BlockingQueue mtMessageQueue = startWorkerQueue();
-
-    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists);
-
+    final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
+    Config jesqueConfig = setupJesque();
+    Worker jedisWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
+    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jedisWorker);
     Thread shutdownHook = new Thread(shutdownClient);
-
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
     while (true) {
       // this blocks until there's a job in the queue
-      final MtMessageJob job = (MtMessageJob) mtMessageQueue.take();
+      final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
       final String preferredSmppServerName = job.getPreferredSmppServerName();
       final long messagesToSend = 1;
       final AtomicLong alreadySent = new AtomicLong();
@@ -183,12 +182,9 @@ public class Main {
     }
   }
 
-  private static final BlockingQueue startWorkerQueue() {
-    final BlockingQueue blockingQueue = new LinkedBlockingQueue<String>();
+  private static final Config setupJesque() {
     final ConfigBuilder configBuilder = new ConfigBuilder();
-
     String redisUrlKey = System.getProperty("REDIS_PROVIDER", "YOUR_REDIS_PROVIDER");
-
     try {
       URI redisUrl = new URI(System.getProperty(redisUrlKey, "127.0.0.1"));
 
@@ -213,12 +209,12 @@ public class Main {
       System.exit(1);
     }
 
-    final Config config = configBuilder.build();
+    return configBuilder.build();
+  }
 
-    // Jesque Configuration
+  private static final Worker startJesqueWorker(final Config jesqueConfig, final BlockingQueue blockingQueue) {
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
-
-    final Worker worker = new WorkerImpl(config,
+    final Worker worker = new WorkerImpl(jesqueConfig,
        Arrays.asList(queueName), new MapBasedJobFactory(map(entry(MtMessageJobRunner.class.getSimpleName(), MtMessageJobRunner.class))));
     worker.getWorkerEventEmitter().addListener(new WorkerListener(){
        public void onEvent(WorkerEvent event, Worker worker, String queue, Job job, Object runner, Object result, Throwable t) {
@@ -230,7 +226,7 @@ public class Main {
 
     final Thread workerThread = new Thread(worker);
     workerThread.start();
-    return blockingQueue;
+    return worker;
   }
 
   private static void loadSystemProperties(String configurationFile) {
