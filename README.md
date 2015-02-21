@@ -23,7 +23,7 @@ java -jar <target/jar-file> -c .chibi_smsc_configuration
 The sandbox provides a way to enqueue MT jobs using Sidekiq in Ruby for processing in Java
 
 ```
-bundle exec foreman run ruby enqueue_mt.rb -e ../.chibi_smsc_configuration
+bundle exec foreman run ruby enqueue_mt.rb -e .chibi_smsc_configuration
 ```
 
-This if you java process is running it should execute the job
+If the java process is running it should execute the job
