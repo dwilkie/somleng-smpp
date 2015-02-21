@@ -88,6 +88,12 @@ public class Main {
 
     BlockingQueue mtMessageQueue = startWorkerQueue();
 
+    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists);
+
+    Thread shutdownHook = new Thread(shutdownClient);
+
+    Runtime.getRuntime().addShutdownHook(shutdownHook);
+
     while (true) {
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob) mtMessageQueue.take();
