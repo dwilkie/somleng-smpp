@@ -36,15 +36,17 @@ set :linked_files, %w{.chibi_smsc_configuration}
 # Default value for keep_releases is 5
 # set :keep_releases, 5
 
+foreman_template = "upstartsu"
+
 set :foreman_use_sudo, :rbenv
-set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env", :template => "`bundle show foreman-upstart-su`/data/export/upstartsu"}
+set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env", :template => "#{shared_path}/#{foreman_template}"}
 set :foreman_export_path, '/etc/init'
 
 namespace :deploy do
-
   after :publishing, :write_path_to_env do
     on roles(:all) do
       within shared_path do
+        execute(:ln, "-s", "`bundle show foreman-upstart-su`/data/export/upstartsu", foreman_template)
         execute(:echo, "PATH=$HOME/.rbenv/shims:$PATH > .env")
       end
     end
