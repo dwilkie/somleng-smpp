@@ -37,7 +37,7 @@ set :linked_files, %w{.chibi_smsc_configuration}
 # set :keep_releases, 5
 
 set :foreman_use_sudo, :rbenv
-set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env"}
+set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env", :template => "`bundle show foreman-upstart-su`/data/export/upstartsu"}
 set :foreman_export_path, '/etc/init'
 
 namespace :deploy do
