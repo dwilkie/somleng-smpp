@@ -197,7 +197,7 @@ public class Main {
       }
 
       if (redisUserInfo != null) {
-        configBuilder.withPassword(redisUserInfo);
+        configBuilder.withPassword(redisUserInfo.split(":",2)[1]);
       }
     }
     catch (URISyntaxException e) {
@@ -206,8 +206,6 @@ public class Main {
     }
 
     final Config config = configBuilder.build();
-
-    System.out.println(config.getURI());
 
     // Jesque Configuration
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
