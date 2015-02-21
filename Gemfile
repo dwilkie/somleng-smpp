@@ -6,7 +6,8 @@ group :development do
   gem 'capistrano'
   gem 'capistrano-rbenv'
   gem 'capistrano-bundler'
-  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
+#  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
+  gem 'capistrano-foreman', :github => "dwilkie/capistrano-foreman", :branch => "interpolate_args"
 end
 
 group :deployment, :development do
