@@ -181,8 +181,10 @@ public class Main {
     final BlockingQueue blockingQueue = new LinkedBlockingQueue<String>();
     final ConfigBuilder configBuilder = new ConfigBuilder();
 
+    String redisUrlKey = System.getProperty("REDIS_PROVIDER", "YOUR_REDIS_PROVIDER");
+
     try {
-      URI redisUrl = new URI(System.getProperty("REDIS_PROVIDER", "127.0.0.1"));
+      URI redisUrl = new URI(System.getProperty(redisUrlKey, "127.0.0.1"));
 
       String redisHost = redisUrl.getHost();
       int redisPort = redisUrl.getPort();
