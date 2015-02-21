@@ -36,15 +36,20 @@ set :linked_files, %w{.chibi_smsc_configuration}
 # Default value for keep_releases is 5
 # set :keep_releases, 5
 
+set :foreman_use_sudo, :rbenv
+set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env"}
+set :foreman_export_path, '/etc/init'
+
 namespace :deploy do
 
-  after :restart, :clear_cache do
-    on roles(:web), in: :groups, limit: 3, wait: 10 do
-      # Here we can do anything such as:
-      # within release_path do
-      #   execute :rake, 'cache:clear'
-      # end
+  after :publishing, :write_path_to_env do
+    on roles(:all) do
+      within shared_path do
+        execute(:echo, "PATH=$HOME/.rbenv/shims:$PATH > .env")
+      end
     end
   end
 
+  after :publishing, "foreman:export"
+  after :publishing, "foreman:restart"
 end

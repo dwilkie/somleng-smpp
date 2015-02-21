@@ -29,7 +29,7 @@ bundle exec foreman run ruby enqueue_mt.rb -e .chibi_smsc_configuration
 From another terminal run:
 
 ```
-java -jar <target/jar-file> -c .chibi_smsc_configuration
+bundle exec foreman run smpp_client
 ```
 
 #### Start the Test SMPP Server

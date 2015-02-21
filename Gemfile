@@ -1,11 +1,14 @@
 source 'https://rubygems.org'
 ruby '2.2.0'
 
-gem 'sidekiq'
-gem 'foreman'
-
 group :development do
+  gem 'sidekiq'
   gem 'capistrano'
   gem 'capistrano-rbenv'
   gem 'capistrano-bundler'
+  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
+end
+
+group :deployment, :development do
+  gem 'foreman', :github => "ddollar/foreman" # needed for deployment
 end
