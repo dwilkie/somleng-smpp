@@ -40,8 +40,7 @@ set :foreman_use_sudo, :rbenv
 set(
   :foreman_options,
   {
-    :user => :deploy,
-    :env => "#{shared_path}/.env",
+    :user => :deploy, :env => "#{shared_path}/.env",
     :template => "`RBENV_ROOT=#{fetch(:rbenv_path)} RBENV_VERSION=#{fetch(:rbenv_ruby)} #{fetch(:rbenv_path)}/bin/rbenv exec bundle show foreman-upstart-su`/data/export/upstartsu"
   }
 )

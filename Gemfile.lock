@@ -8,8 +8,7 @@ GIT
 
 GIT
   remote: git://github.com/dwilkie/capistrano-foreman.git
-  revision: e0758e684053305ebfa3f574933eaabaf7cd6b05
-  branch: interpolate_args
+  revision: e8b372ae8b8c8ec69b42ab4041bef6328a453ddc
   specs:
     capistrano-foreman (1.1.0)
       capistrano (~> 3.1)
