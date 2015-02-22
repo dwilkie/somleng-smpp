@@ -21,7 +21,7 @@ mvn package
 From the terminal run:
 
 ```
-bundle exec foreman run ruby enqueue_mt.rb -e .chibi_smsc_configuration
+bundle exec foreman run -e .chibi_smsc_configuration ruby enqueue_mt.rb
 ```
 
 #### Start the SMPP Client
@@ -63,11 +63,15 @@ bundle exec cap production deploy
 
 ## Troubleshooting Using Wireshark
 
-### Capture some packets
+### Capture outgoing packets
 
 ```
-sudo tcpdump -i eth0 -nnvvS host <public-ip-of-vpn-host-not-internal-ip> -w output.cap
+sudo tcpdump -i eth0 -nnvvS dst host <public-ip-of-vpn-host-not-internal-ip> -w output.cap
 ```
+
+### Capture incoming packets
+
+sudo tcpdump -i eth0 -nnvvS dst host <masked-internal-ip> -w output.cap
 
 ### Download the packets locally
 
@@ -75,7 +79,7 @@ sudo tcpdump -i eth0 -nnvvS host <public-ip-of-vpn-host-not-internal-ip> -w outp
 sftp -i ~/.ssh/aws/dwilkie.pem ubuntu@nuntium.chibitxt.me:output.cap .
 ```
 
-### Inspect the packets using Wireshark
+### Decrypting outgoing packets using Wireshark
 
 From the server run the following:
 
