@@ -40,7 +40,7 @@ From yet another terminal run:
 
 ```
 cd /path/to/cloudhopper
-make server
+make server-echo
 ```
 
 ### Remotely
@@ -66,12 +66,14 @@ bundle exec cap production deploy
 ### Capture outgoing packets
 
 ```
-sudo tcpdump -i eth0 -nnvvS dst host <public-ip-of-vpn-host-not-internal-ip> -w output.cap
+sudo tcpdump -i eth0 -nnvvS dst host <public-ip-of-vpn-host-not-internal-ip> -w "`date +'%Y-%m-%d'`_description.cap"
 ```
 
 ### Capture incoming packets
 
-sudo tcpdump -i eth0 -nnvvS dst host <masked-internal-ip> -w output.cap
+```
+sudo tcpdump -i eth0 -nnvvS dst host 174.129.212.2 -w "`date +'%Y-%m-%d'`_description.cap"
+```
 
 ### Download the packets locally
 
