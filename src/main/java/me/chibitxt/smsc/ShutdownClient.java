@@ -5,20 +5,24 @@ import java.util.Map;
 import java.util.Iterator;
 import com.cloudhopper.commons.util.*;
 import net.greghaines.jesque.worker.Worker;
+import net.greghaines.jesque.client.Client;
 
 public class ShutdownClient implements Runnable {
   private ExecutorService executorService;
   private Map<String,LoadBalancedList<OutboundClient>> balancedLists;
-  private Worker worker;
+  private Worker jedisWorker;
+  private Client jedisClient;
 
-  public ShutdownClient(ExecutorService executorService, Map balancedLists, Worker worker) {
+  public ShutdownClient(ExecutorService executorService, Map balancedLists, Worker jedisWorker, Client jedisClient) {
     this.executorService = executorService;
     this.balancedLists = balancedLists;
-    this.worker = worker;
+    this.jedisWorker = jedisWorker;
+    this.jedisClient = jedisClient;
   }
 
   public void run() {
-    worker.end(true);
+    jedisWorker.end(true);
+    jedisClient.end();
 
     executorService.shutdownNow();
     ReconnectionDaemon.getInstance().shutdown();

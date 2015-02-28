@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.io.FileInputStream;
 import java.util.Properties;
 
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import java.net.URI;
@@ -88,8 +87,9 @@ public class Main {
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
     Config jesqueConfig = setupJesque();
-    Worker jedisWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
-    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jedisWorker);
+    final Worker jedisWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
+    final Client jedisClient = new ClientImpl(jesqueConfig);
+    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jedisWorker, jedisClient);
     Thread shutdownHook = new Thread(shutdownClient);
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
@@ -109,39 +109,21 @@ public class Main {
                 final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
                 final SmppSession session = next.getSession();
                 if (session != null && session.isBound()) {
-                  final String text160 = job.getMessageBody();
-
+                  final int mtMessageExternalId = job.getExternalMessageId();
+                  final String mtMessageText = job.getMessageBody();
                   byte[] textBytes;
                   byte dataCoding;
 
-                  if (GSMCharset.canRepresent(text160)) {
-                    textBytes = CharsetUtil.encode(text160, CharsetUtil.CHARSET_GSM);
+                  if (GSMCharset.canRepresent(mtMessageText)) {
+                    textBytes = CharsetUtil.encode(mtMessageText, CharsetUtil.CHARSET_GSM);
                     dataCoding = SmppConstants.DATA_CODING_GSM;
                   } else {
-                    textBytes = CharsetUtil.encode(text160, CharsetUtil.CHARSET_UCS_2);
+                    textBytes = CharsetUtil.encode(mtMessageText, CharsetUtil.CHARSET_UCS_2);
                     dataCoding = SmppConstants.DATA_CODING_UCS2;
 
-                    ByteOrder destByteOrder;
-
-                    int convertToLittleEndian = Integer.parseInt(
-                      System.getProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "1")
+                    textBytes = ChibiCharsetUtil.getEndianBytes(
+                      textBytes, ChibiCharsetUtil.getByteOrder(preferredSmppServerName)
                     );
-
-                    if(convertToLittleEndian == 1) {
-                      destByteOrder = ByteOrder.LITTLE_ENDIAN;
-                    } else {
-                      destByteOrder = ByteOrder.BIG_ENDIAN;
-                    }
-
-                    ByteBuffer sourceByteBuffer = ByteBuffer.wrap(textBytes);
-                    ByteBuffer destByteBuffer = ByteBuffer.allocate(textBytes.length);
-
-                    destByteBuffer.order(destByteOrder);
-                    while(sourceByteBuffer.hasRemaining()) {
-                      destByteBuffer.putShort(sourceByteBuffer.getShort());
-                    }
-
-                    textBytes = destByteBuffer.array();
                   }
 
                   SubmitSm submit = new SubmitSm();
@@ -169,6 +151,29 @@ public class Main {
                   submit.setDataCoding(dataCoding);
                   submit.setShortMessage(textBytes);
                   final SubmitSmResp submit1 = session.submit(submit, 10000);
+
+                  String mtMessageUpdateStatusWorker = System.getProperty(
+                    "SMPP_MT_MESSAGE_UPDATE_STATUS_WORKER"
+                  );
+
+                  String mtMessageUpdateStatusQueue = System.getProperty(
+                    "SMPP_MT_MESSAGE_UPDATE_STATUS_QUEUE"
+                  );
+
+                  final Job job = new Job(
+                    mtMessageUpdateStatusWorker,
+                    mtMessageExternalId,
+                    submit1.getMessageId(),
+                    submit1.getCommandStatus() == SmppConstants.STATUS_OK
+                  );
+
+                  jedisClient.enqueue(mtMessageUpdateStatusQueue, job);
+
+                  System.out.println("----SUBMIT RESP---");
+                  System.out.println(submit1.getMessageId());
+                  System.out.println(submit1.getResultMessage());
+                  System.out.println(submit1.getCommandStatus());
+                  System.out.println(submit1.getCommandStatus() == SmppConstants.STATUS_OK);
                 }
                 sent = alreadySent.incrementAndGet();
               }

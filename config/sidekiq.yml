@@ -1,0 +1,3 @@
+---
+:queues:
+  - [<%= ENV["SMPP_MT_MESSAGE_UPDATE_STATUS_QUEUE"] %>, 1]

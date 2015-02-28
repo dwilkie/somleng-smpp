@@ -43,6 +43,16 @@ cd /path/to/cloudhopper
 make server-echo
 ```
 
+#### Start a local Sidekiq Worker
+
+This will start Sidekiq which will process the required jobs in Ruby
+
+From yet another terminal run:
+
+```
+bundle exec foreman start sidekiq_worker -e .chibi_smsc_configuration
+```
+
 ### Remotely
 
 From the development machine first charge `REDISTOGO_URL` in [.chibi_smsc_configuration](https://github.com/dwilkie/chibi-smsc/blob/master/.chibi_smsc_configuration) with the remote `REDISTOGO_URL`.
