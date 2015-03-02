@@ -163,17 +163,12 @@ public class Main {
                   final Job job = new Job(
                     mtMessageUpdateStatusWorker,
                     mtMessageExternalId,
+                    preferredSmppServerName,
                     submit1.getMessageId(),
                     submit1.getCommandStatus() == SmppConstants.STATUS_OK
                   );
 
                   jedisClient.enqueue(mtMessageUpdateStatusQueue, job);
-
-                  System.out.println("----SUBMIT RESP---");
-                  System.out.println(submit1.getMessageId());
-                  System.out.println(submit1.getResultMessage());
-                  System.out.println(submit1.getCommandStatus());
-                  System.out.println(submit1.getCommandStatus() == SmppConstants.STATUS_OK);
                   sent = alreadySent.incrementAndGet();
                 }
               }
