@@ -93,7 +93,7 @@ public class Main {
     Thread shutdownHook = new Thread(shutdownClient);
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-    while (true) {
+    while(true) {
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
       final String preferredSmppServerName = job.getPreferredSmppServerName();
@@ -174,8 +174,8 @@ public class Main {
                   System.out.println(submit1.getResultMessage());
                   System.out.println(submit1.getCommandStatus());
                   System.out.println(submit1.getCommandStatus() == SmppConstants.STATUS_OK);
+                  sent = alreadySent.incrementAndGet();
                 }
-                sent = alreadySent.incrementAndGet();
               }
             } catch (Exception e) {
               System.err.println(e.toString());
