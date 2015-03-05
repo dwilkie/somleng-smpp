@@ -6,7 +6,7 @@
   <packaging>jar</packaging>
   <version>0.0.1-SNAPSHOT</version>
   <name>chbi-smsc</name>
-  <description>Efficient, scalable, and flexible Java implementation of the Short Messaging Peer to Peer Protocol (SMPP)</description>
+  <description>Chibi's SMSC</description>
   <url>https://github.com/dwilkie/chibi-smsc</url>
 
   <dependencies>
@@ -15,6 +15,11 @@
       <groupId>com.cloudhopper</groupId>
       <artifactId>ch-smpp</artifactId>
       <version>5.0.7</version>
+    </dependency>
+    <dependency>
+      <groupId>com.cloudhopper</groupId>
+      <artifactId>ch-commons-gsm</artifactId>
+      <version>[3.0.0,)</version>
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>

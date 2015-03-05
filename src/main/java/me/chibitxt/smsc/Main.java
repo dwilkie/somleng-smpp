@@ -114,17 +114,21 @@ public class Main {
                   byte[] textBytes;
                   byte dataCoding;
 
+                  Charset destCharset;
+
                   if (GSMCharset.canRepresent(mtMessageText)) {
-                    textBytes = CharsetUtil.encode(mtMessageText, CharsetUtil.CHARSET_GSM);
+                    destCharset = CharsetUtil.CHARSET_GSM;
                     dataCoding = SmppConstants.DATA_CODING_GSM;
                   } else {
-                    textBytes = CharsetUtil.encode(mtMessageText, CharsetUtil.CHARSET_UCS_2);
                     dataCoding = SmppConstants.DATA_CODING_UCS2;
-
-                    textBytes = ChibiCharsetUtil.getEndianBytes(
-                      textBytes, ChibiCharsetUtil.getByteOrder(preferredSmppServerName)
-                    );
+                    if(getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
+                      destCharset = CharsetUtil.CHARSET_UCS_2;
+                    } else {
+                      destCharset = CharsetUtil.CHARSET_UCS_2LE;
+                    }
                   }
+
+                  textBytes = CharsetUtil.encode(mtMessageText, destCharset);
 
                   SubmitSm submit = new SubmitSm();
                   int sourceTon = Integer.parseInt(
@@ -308,5 +312,21 @@ public class Main {
     config.setCountersEnabled(false);
 
     return config;
+  }
+
+  private static boolean getBooleanProperty(String key, String defaultValue) {
+    int value = Integer.parseInt(
+      System.getProperty(key, defaultValue)
+    );
+
+    boolean property;
+
+    if(value == 1) {
+      property = true;
+    } else {
+      property = false;
+    }
+
+    return property;
   }
 }

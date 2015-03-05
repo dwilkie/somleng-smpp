@@ -8,6 +8,7 @@ import com.cloudhopper.smpp.SmppConstants;
 
 import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.smpp.util.SmppUtil;
+import com.cloudhopper.commons.gsm.DataCoding;
 
 public class DummySmppClientMessageService implements SmppClientMessageService {
 
@@ -18,7 +19,10 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
       DeliverSm mo = (DeliverSm) pduRequest;
       Address sourceAddress = mo.getSourceAddress();
       Address destAddress = mo.getDestAddress();
-      byte dataCoding = mo.getDataCoding();
+      byte dcs = mo.getDataCoding();
+
+      DataCoding dataCoding = DataCoding.parse(dcs);
+      byte characterEncoding = dataCoding.getCharacterEncoding();
 
       if (SmppUtil.isMessageTypeSmscDeliveryReceipt(mo.getEsmClass())) {
         System.out.println("-------------DELIVERY RECEIPT------------");
@@ -27,20 +31,23 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
         // here we can enqueue that message id and state
       } else {
         System.out.println("------------MT---------------------------");
+
+        byte[] shortMessage = mo.getShortMessage();
+        String charsetName;
+
+        if(characterEncoding == com.cloudhopper.commons.gsm.DataCoding.CHAR_ENC_UCS2) {
+          // add logic to use LE if flag is set
+          charsetName = com.cloudhopper.commons.charset.CharsetUtil.NAME_UCS_2;
+        } else {
+          // add logic here to read FLAG
+          // UTF-8 works here because the default charset is ASCII
+          // Latin-1 would also work
+          charsetName = com.cloudhopper.commons.charset.CharsetUtil.NAME_UTF_8;
+        }
+
+        String messageText = CharsetUtil.decode(shortMessage, charsetName);
+        System.out.println(sourceAddress + ", " + destAddress + ", " + messageText);
       }
-
-      byte[] shortMessage = mo.getShortMessage();
-
-      // Only reverse the bytes if we are UCS-2
-      // Need to set the operator name here
-
-      shortMessage = ChibiCharsetUtil.getEndianBytes(
-        shortMessage, ChibiCharsetUtil.getByteOrder("SMART")
-      );
-
-      String messageText = CharsetUtil.decode(shortMessage, "UCS-2");
-
-      System.out.println(sourceAddress + ", " + destAddress + ", " + messageText);
     }
     return pduRequest.createResponse();
   }
