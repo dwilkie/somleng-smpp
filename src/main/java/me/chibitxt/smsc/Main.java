@@ -37,22 +37,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.ParseException;
 
-import static net.greghaines.jesque.utils.JesqueUtils.entry;
-import static net.greghaines.jesque.utils.JesqueUtils.map;
-
-import net.greghaines.jesque.Config;
-import net.greghaines.jesque.ConfigBuilder;
-import net.greghaines.jesque.worker.Worker;
-import net.greghaines.jesque.worker.WorkerImpl;
-import net.greghaines.jesque.worker.WorkerEvent;
-import net.greghaines.jesque.worker.WorkerListener;
-import net.greghaines.jesque.worker.MapBasedJobFactory;
-import net.greghaines.jesque.client.Client;
-import net.greghaines.jesque.client.ClientImpl;
-import net.greghaines.jesque.Job;
-
-//import net.greghaines.jesque.TestJob;
-
 public class Main {
   public static void main(String[] args) throws IOException, RecoverablePduException, InterruptedException,
       SmppChannelException, UnrecoverablePduException, SmppTimeoutException {
@@ -62,6 +46,8 @@ public class Main {
 
     DummySmppClientMessageService smppClientMessageService = new DummySmppClientMessageService();
 
+    net.greghaines.jesque.Config jesqueConfig = setupJesque();
+
     final String smppServersString = System.getProperty("SMPP_SERVERS", "default");
 
     final String[] smppServerNames = smppServersString.split(";");
@@ -70,6 +56,26 @@ public class Main {
 
     int totalNumOfThreads = 0;
 
+    // External Queues and Workers
+
+    // MT Message Updater
+    final String mtMessageUpdateStatusWorker = System.getProperty(
+      "SMPP_MT_MESSAGE_UPDATE_STATUS_WORKER"
+    );
+
+    final String mtMessageUpdateStatusQueue = System.getProperty(
+      "SMPP_MT_MESSAGE_UPDATE_STATUS_QUEUE"
+    );
+
+    // Delivery Receipt Updater
+    final String deliveryReceiptUpdateStatusWorker = System.getProperty(
+      "SMPP_DELIVERY_RECEIPT_UPDATE_STATUS_WORKER"
+    );
+
+    final String deliveryReceiptUpdateStatusQueue = System.getProperty(
+      "SMPP_DELIVERY_RECEIPT_UPDATE_STATUS_QUEUE"
+    );
+
     for (int smppServerCounter = 0; smppServerCounter < smppServerNames.length; smppServerCounter++) {
       String smppServerKey = smppServerNames[smppServerCounter].toUpperCase();
       int numOfThreads = Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_MT_THREAD_SIZE", "1"));
@@ -77,7 +83,7 @@ public class Main {
       final LoadBalancedList<OutboundClient> balancedList = LoadBalancedLists.synchronizedList(new RoundRobinLoadBalancedList<OutboundClient>());
 
       for (int threadCounter = 0; threadCounter < numOfThreads; threadCounter++) {
-        balancedList.set(createClient(smppClientMessageService, threadCounter, smppServerKey), 1);
+        balancedList.set(createClient(smppClientMessageService, threadCounter, smppServerKey, jesqueConfig, deliveryReceiptUpdateStatusWorker, deliveryReceiptUpdateStatusQueue), 1);
         totalNumOfThreads++;
       }
       smppServerBalancedLists.put(smppServerKey, balancedList);
@@ -86,10 +92,11 @@ public class Main {
     final ExecutorService executorService = Executors.newFixedThreadPool(totalNumOfThreads);
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
-    Config jesqueConfig = setupJesque();
-    final Worker jedisWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
-    final Client jedisClient = new ClientImpl(jesqueConfig);
-    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jedisWorker, jedisClient);
+
+    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(jesqueConfig);
+
+    final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
+    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jesqueMtWorker, jesqueMtClient);
     Thread shutdownHook = new Thread(shutdownClient);
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
@@ -109,26 +116,26 @@ public class Main {
                 final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
                 final SmppSession session = next.getSession();
                 if (session != null && session.isBound()) {
+
                   final int mtMessageExternalId = job.getExternalMessageId();
                   final String mtMessageText = job.getMessageBody();
                   byte[] textBytes;
                   byte dataCoding;
-
-                  Charset destCharset;
+                  String destCharsetName;
 
                   if (GSMCharset.canRepresent(mtMessageText)) {
-                    destCharset = CharsetUtil.CHARSET_GSM;
+                    destCharsetName = CharsetUtil.NAME_GSM;
                     dataCoding = SmppConstants.DATA_CODING_GSM;
                   } else {
                     dataCoding = SmppConstants.DATA_CODING_UCS2;
-                    if(getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
-                      destCharset = CharsetUtil.CHARSET_UCS_2;
+                    if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
+                      destCharsetName = CharsetUtil.NAME_UCS_2LE;
                     } else {
-                      destCharset = CharsetUtil.CHARSET_UCS_2LE;
+                      destCharsetName = CharsetUtil.NAME_UCS_2;
                     }
                   }
 
-                  textBytes = CharsetUtil.encode(mtMessageText, destCharset);
+                  textBytes = CharsetUtil.encode(mtMessageText, destCharsetName);
 
                   SubmitSm submit = new SubmitSm();
                   int sourceTon = Integer.parseInt(
@@ -156,15 +163,7 @@ public class Main {
                   submit.setShortMessage(textBytes);
                   final SubmitSmResp submit1 = session.submit(submit, 10000);
 
-                  String mtMessageUpdateStatusWorker = System.getProperty(
-                    "SMPP_MT_MESSAGE_UPDATE_STATUS_WORKER"
-                  );
-
-                  String mtMessageUpdateStatusQueue = System.getProperty(
-                    "SMPP_MT_MESSAGE_UPDATE_STATUS_QUEUE"
-                  );
-
-                  final Job job = new Job(
+                  final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
                     mtMessageUpdateStatusWorker,
                     mtMessageExternalId,
                     preferredSmppServerName,
@@ -172,7 +171,7 @@ public class Main {
                     submit1.getCommandStatus() == SmppConstants.STATUS_OK
                   );
 
-                  jedisClient.enqueue(mtMessageUpdateStatusQueue, job);
+                  jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
                   sent = alreadySent.incrementAndGet();
                 }
               }
@@ -186,8 +185,8 @@ public class Main {
     }
   }
 
-  private static final Config setupJesque() {
-    final ConfigBuilder configBuilder = new ConfigBuilder();
+  private static final net.greghaines.jesque.Config setupJesque() {
+    final net.greghaines.jesque.ConfigBuilder configBuilder = new net.greghaines.jesque.ConfigBuilder();
     String redisUrlKey = System.getProperty("REDIS_PROVIDER", "YOUR_REDIS_PROVIDER");
     try {
       URI redisUrl = new URI(System.getProperty(redisUrlKey, "127.0.0.1"));
@@ -216,17 +215,17 @@ public class Main {
     return configBuilder.build();
   }
 
-  private static final Worker startJesqueWorker(final Config jesqueConfig, final BlockingQueue blockingQueue) {
+  private static final net.greghaines.jesque.worker.Worker startJesqueWorker(final net.greghaines.jesque.Config jesqueConfig, final BlockingQueue blockingQueue) {
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
-    final Worker worker = new WorkerImpl(jesqueConfig,
-       Arrays.asList(queueName), new MapBasedJobFactory(map(entry(MtMessageJobRunner.class.getSimpleName(), MtMessageJobRunner.class))));
-    worker.getWorkerEventEmitter().addListener(new WorkerListener(){
-       public void onEvent(WorkerEvent event, Worker worker, String queue, Job job, Object runner, Object result, Throwable t) {
+    final net.greghaines.jesque.worker.Worker worker = new net.greghaines.jesque.worker.WorkerImpl(jesqueConfig,
+       Arrays.asList(queueName), new net.greghaines.jesque.worker.MapBasedJobFactory(net.greghaines.jesque.utils.JesqueUtils.map(net.greghaines.jesque.utils.JesqueUtils.entry(MtMessageJobRunner.class.getSimpleName(), MtMessageJobRunner.class))));
+    worker.getWorkerEventEmitter().addListener(new net.greghaines.jesque.worker.WorkerListener(){
+       public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
         if (runner instanceof MtMessageJobRunner) {
             ((MtMessageJobRunner) runner).setQueue(blockingQueue);
         }
       }
-    }, WorkerEvent.JOB_EXECUTE);
+    }, net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE);
 
     final Thread workerThread = new Thread(worker);
     workerThread.start();
@@ -286,8 +285,16 @@ public class Main {
     return smppConfigurationFile;
   }
 
-  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey) {
+  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey, net.greghaines.jesque.Config jesqueConfig, String deliveryReceiptUpdateStatusWorker, String deliveryReceiptUpdateStatusQueue) {
     OutboundClient client = new OutboundClient();
+
+    client.setSmppServerId(smppServerKey);
+    client.setDeliveryReceiptUpdateStatusWorker(deliveryReceiptUpdateStatusWorker);
+
+
+    client.setDeliveryReceiptUpdateStatusQueue(deliveryReceiptUpdateStatusQueue);
+
+    client.setJesqueClient(new net.greghaines.jesque.client.ClientImpl(jesqueConfig));
     client.initialize(getSmppSessionConfiguration(i, smppServerKey), smppClientMessageService);
     client.scheduleReconnect();
     return client;
@@ -312,21 +319,5 @@ public class Main {
     config.setCountersEnabled(false);
 
     return config;
-  }
-
-  private static boolean getBooleanProperty(String key, String defaultValue) {
-    int value = Integer.parseInt(
-      System.getProperty(key, defaultValue)
-    );
-
-    boolean property;
-
-    if(value == 1) {
-      property = true;
-    } else {
-      property = false;
-    }
-
-    return property;
   }
 }

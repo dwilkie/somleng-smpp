@@ -19,10 +19,17 @@ public class OutboundClient extends Client {
 
   private final ScheduledThreadPoolExecutor monitorExecutor;
   private final ThreadPoolExecutor executor;
+
+  private String deliveryReceiptUpdateStatusQueue;
+  private String deliveryReceiptUpdateStatusWorker;
+
+  private net.greghaines.jesque.client.Client jesqueClient;
+
   private DefaultSmppClient clientBootstrap;
   private DefaultSmppSessionHandler sessionHandler;
 
   private SmppSessionConfiguration config;
+  private String smppServerId;
 
   private ScheduledExecutorService enquireLinkExecutor;
   private ScheduledFuture<?> enquireLinkTask;
@@ -146,6 +153,8 @@ public class OutboundClient extends Client {
     shutdown = true;
     disconnect();
 
+    jesqueClient.end();
+
     // this is required to not causing server to hang from non-daemon threads
     // this also makes sure all open Channels are closed to I *think*
     clientBootstrap.destroy();
@@ -209,4 +218,34 @@ public class OutboundClient extends Client {
     return LoggingUtil.toString2(config);
   }
 
+  public void setSmppServerId(String smppServerId) {
+    this.smppServerId = smppServerId;
+  }
+
+  public String getSmppServerId() {
+    return smppServerId;
+  }
+
+  public void setJesqueClient(net.greghaines.jesque.client.Client jesqueClient) {
+    this.jesqueClient = jesqueClient;
+  }
+
+  public void setDeliveryReceiptUpdateStatusQueue(String deliveryReceiptUpdateStatusQueue) {
+    this.deliveryReceiptUpdateStatusQueue = deliveryReceiptUpdateStatusQueue;
+  }
+
+  public void setDeliveryReceiptUpdateStatusWorker(String deliveryReceiptUpdateStatusWorker) {
+    this.deliveryReceiptUpdateStatusWorker = deliveryReceiptUpdateStatusWorker;
+  }
+
+  public void deliveryReceiptReceived(String smscIdentifier, String deliveryStatus) {
+    final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
+      deliveryReceiptUpdateStatusWorker,
+      smppServerId,
+      smscIdentifier,
+      deliveryStatus
+    );
+
+    jesqueClient.enqueue(deliveryReceiptUpdateStatusQueue, job);
+  }
 }

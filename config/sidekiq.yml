@@ -1,3 +1,4 @@
 ---
 :queues:
   - [<%= ENV["SMPP_MT_MESSAGE_UPDATE_STATUS_QUEUE"] %>, 1]
+  - [<%= ENV["SMPP_DELIVERY_RECEIPT_UPDATE_STATUS_QUEUE"] %>, 1]

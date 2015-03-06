@@ -5,12 +5,19 @@ import com.cloudhopper.smpp.pdu.PduResponse;
 
 import com.cloudhopper.smpp.type.Address;
 import com.cloudhopper.smpp.SmppConstants;
+import com.cloudhopper.smpp.tlv.Tlv;
+import com.cloudhopper.smpp.tlv.TlvConvertException;
 
 import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.smpp.util.SmppUtil;
 import com.cloudhopper.commons.gsm.DataCoding;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class DummySmppClientMessageService implements SmppClientMessageService {
+
+  private Logger logger = LoggerFactory.getLogger(DummySmppClientMessageService.class);
 
   /** delivery receipt, or MO */
   @Override
@@ -19,30 +26,35 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
       DeliverSm mo = (DeliverSm) pduRequest;
       Address sourceAddress = mo.getSourceAddress();
       Address destAddress = mo.getDestAddress();
+      String smppServerId = client.getSmppServerId();
+
       byte dcs = mo.getDataCoding();
 
       DataCoding dataCoding = DataCoding.parse(dcs);
       byte characterEncoding = dataCoding.getCharacterEncoding();
 
       if (SmppUtil.isMessageTypeSmscDeliveryReceipt(mo.getEsmClass())) {
-        System.out.println("-------------DELIVERY RECEIPT------------");
-        // On submit sm response we get a message id from the smsc
-        // we should add add this to the queue when we get the response from the smsc
-        // here we can enqueue that message id and state
+        Tlv tlvReceiptedMsgId = pduRequest.getOptionalParameter(SmppConstants.TAG_RECEIPTED_MSG_ID);
+        Tlv tlvMessageState = pduRequest.getOptionalParameter(SmppConstants.TAG_MSG_STATE);
+        try {
+          String smscIdentifier = tlvReceiptedMsgId.getValueAsString();
+          String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
+          client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
+        } catch(TlvConvertException e) {
+          logger.warn("Error while converting TLV", e);
+        }
       } else {
-        System.out.println("------------MT---------------------------");
-
         byte[] shortMessage = mo.getShortMessage();
         String charsetName;
 
-        if(characterEncoding == com.cloudhopper.commons.gsm.DataCoding.CHAR_ENC_UCS2) {
-          // add logic to use LE if flag is set
-          charsetName = com.cloudhopper.commons.charset.CharsetUtil.NAME_UCS_2;
+        if(characterEncoding == DataCoding.CHAR_ENC_UCS2) {
+          if(ChibiUtil.getBooleanProperty(smppServerId + "_SMPP_MO_UCS2_LITTLE_ENDIANNESS", "0")) {
+            charsetName = CharsetUtil.NAME_UCS_2LE;
+          } else {
+            charsetName = CharsetUtil.NAME_UCS_2;
+          }
         } else {
-          // add logic here to read FLAG
-          // UTF-8 works here because the default charset is ASCII
-          // Latin-1 would also work
-          charsetName = com.cloudhopper.commons.charset.CharsetUtil.NAME_UTF_8;
+          charsetName = CharsetUtil.NAME_UTF_8;
         }
 
         String messageText = CharsetUtil.decode(shortMessage, charsetName);
@@ -50,5 +62,30 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
       }
     }
     return pduRequest.createResponse();
+  }
+
+  private String getDeliveryStatus(byte deliveryState) {
+    String deliveryStatus;
+    switch (deliveryState) {
+      case SmppConstants.STATE_ENROUTE:        deliveryStatus = "ENROUTE";
+                                               break;
+      case SmppConstants.STATE_DELIVERED:      deliveryStatus = "DELIVERED";
+                                               break;
+      case SmppConstants.STATE_EXPIRED:        deliveryStatus = "EXPIRED";
+                                               break;
+      case SmppConstants.STATE_DELETED:        deliveryStatus = "DELETED";
+                                               break;
+      case SmppConstants.STATE_UNDELIVERABLE:  deliveryStatus = "UNDELIVERABLE";
+                                               break;
+      case SmppConstants.STATE_ACCEPTED:       deliveryStatus = "ACCEPTED";
+                                               break;
+      case SmppConstants.STATE_UNKNOWN:        deliveryStatus = "UNKNOWN";
+                                               break;
+      case SmppConstants.STATE_REJECTED:       deliveryStatus = "REJECTED";
+                                               break;
+      default:                                 deliveryStatus = "INVALID";
+                                               break;
+    }
+    return deliveryStatus;
   }
 }
