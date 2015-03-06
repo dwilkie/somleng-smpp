@@ -174,8 +174,8 @@ public class Main {
 
                   final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
                     mtMessageUpdateStatusWorker,
-                    mtMessageExternalId,
                     preferredSmppServerName,
+                    mtMessageExternalId,
                     submit1.getMessageId(),
                     submit1.getCommandStatus() == SmppConstants.STATUS_OK
                   );
