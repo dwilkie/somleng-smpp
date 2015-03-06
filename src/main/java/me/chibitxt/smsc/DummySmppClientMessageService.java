@@ -23,45 +23,53 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
   @Override
   public PduResponse received(OutboundClient client, DeliverSm pduRequest) {
     if (pduRequest.getCommandId() == SmppConstants.CMD_ID_DELIVER_SM) {
-      DeliverSm mo = (DeliverSm) pduRequest;
-      Address sourceAddress = mo.getSourceAddress();
-      Address destAddress = mo.getDestAddress();
-      String smppServerId = client.getSmppServerId();
-
-      byte dcs = mo.getDataCoding();
-
-      DataCoding dataCoding = DataCoding.parse(dcs);
-      byte characterEncoding = dataCoding.getCharacterEncoding();
-
-      if (SmppUtil.isMessageTypeSmscDeliveryReceipt(mo.getEsmClass())) {
-        Tlv tlvReceiptedMsgId = pduRequest.getOptionalParameter(SmppConstants.TAG_RECEIPTED_MSG_ID);
-        Tlv tlvMessageState = pduRequest.getOptionalParameter(SmppConstants.TAG_MSG_STATE);
-        try {
-          String smscIdentifier = tlvReceiptedMsgId.getValueAsString();
-          String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
-          client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
-        } catch(TlvConvertException e) {
-          logger.warn("Error while converting TLV", e);
-        }
+      if (SmppUtil.isMessageTypeSmscDeliveryReceipt(pduRequest.getEsmClass())) {
+        handleDeliveryReceipt(client, pduRequest);
       } else {
-        byte[] shortMessage = mo.getShortMessage();
-        String charsetName;
-
-        if(characterEncoding == DataCoding.CHAR_ENC_UCS2) {
-          if(ChibiUtil.getBooleanProperty(smppServerId + "_SMPP_MO_UCS2_LITTLE_ENDIANNESS", "0")) {
-            charsetName = CharsetUtil.NAME_UCS_2LE;
-          } else {
-            charsetName = CharsetUtil.NAME_UCS_2;
-          }
-        } else {
-          charsetName = CharsetUtil.NAME_UTF_8;
-        }
-
-        String messageText = CharsetUtil.decode(shortMessage, charsetName);
-        System.out.println(sourceAddress + ", " + destAddress + ", " + messageText);
+        handleMoMessage(client, pduRequest);
       }
     }
     return pduRequest.createResponse();
+  }
+
+  private void handleMoMessage(OutboundClient client, DeliverSm pduRequest) {
+    DeliverSm mo = (DeliverSm) pduRequest;
+    Address sourceAddress = mo.getSourceAddress();
+    Address destAddress = mo.getDestAddress();
+    String smppServerId = client.getSmppServerId();
+
+    byte dcs = mo.getDataCoding();
+
+    DataCoding dataCoding = DataCoding.parse(dcs);
+    byte characterEncoding = dataCoding.getCharacterEncoding();
+
+    byte[] shortMessage = mo.getShortMessage();
+    String charsetName;
+
+    if(characterEncoding == DataCoding.CHAR_ENC_UCS2) {
+      if(ChibiUtil.getBooleanProperty(smppServerId + "_SMPP_MO_UCS2_LITTLE_ENDIANNESS", "0")) {
+        charsetName = CharsetUtil.NAME_UCS_2LE;
+      } else {
+        charsetName = CharsetUtil.NAME_UCS_2;
+      }
+    } else {
+      charsetName = CharsetUtil.NAME_UTF_8;
+    }
+
+    String messageText = CharsetUtil.decode(shortMessage, charsetName);
+    System.out.println(sourceAddress + ", " + destAddress + ", " + messageText);
+  }
+
+  private void handleDeliveryReceipt(OutboundClient client, DeliverSm pduRequest) {
+    Tlv tlvReceiptedMsgId = pduRequest.getOptionalParameter(SmppConstants.TAG_RECEIPTED_MSG_ID);
+    Tlv tlvMessageState = pduRequest.getOptionalParameter(SmppConstants.TAG_MSG_STATE);
+    try {
+      String smscIdentifier = tlvReceiptedMsgId.getValueAsString();
+      String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
+      client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
+    } catch(TlvConvertException e) {
+      logger.warn("Error while converting TLV", e);
+    }
   }
 
   private String getDeliveryStatus(byte deliveryState) {
