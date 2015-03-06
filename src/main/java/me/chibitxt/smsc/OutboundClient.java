@@ -20,8 +20,12 @@ public class OutboundClient extends Client {
   private final ScheduledThreadPoolExecutor monitorExecutor;
   private final ThreadPoolExecutor executor;
 
+  // external queues and workers
   private String deliveryReceiptUpdateStatusQueue;
   private String deliveryReceiptUpdateStatusWorker;
+
+  private String moMessageReceivedQueue;
+  private String moMessageReceivedWorker;
 
   private net.greghaines.jesque.client.Client jesqueClient;
 
@@ -230,12 +234,20 @@ public class OutboundClient extends Client {
     this.jesqueClient = jesqueClient;
   }
 
-  public void setDeliveryReceiptUpdateStatusQueue(String deliveryReceiptUpdateStatusQueue) {
-    this.deliveryReceiptUpdateStatusQueue = deliveryReceiptUpdateStatusQueue;
+  public void setDeliveryReceiptUpdateStatusQueue(String value) {
+    this.deliveryReceiptUpdateStatusQueue = value;
   }
 
-  public void setDeliveryReceiptUpdateStatusWorker(String deliveryReceiptUpdateStatusWorker) {
-    this.deliveryReceiptUpdateStatusWorker = deliveryReceiptUpdateStatusWorker;
+  public void setDeliveryReceiptUpdateStatusWorker(String value) {
+    this.deliveryReceiptUpdateStatusWorker = value;
+  }
+
+  public void setMoMessageReceivedQueue(String value) {
+    this.moMessageReceivedQueue = value;
+  }
+
+  public void setMoMessageReceivedWorker(String value) {
+    this.moMessageReceivedWorker = value;
   }
 
   public void deliveryReceiptReceived(String smscIdentifier, String deliveryStatus) {
@@ -247,5 +259,17 @@ public class OutboundClient extends Client {
     );
 
     jesqueClient.enqueue(deliveryReceiptUpdateStatusQueue, job);
+  }
+
+  public void moMessageReceived(String sourceAddress, String destAddress, String messageText) {
+    final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
+      moMessageReceivedWorker,
+      smppServerId,
+      sourceAddress,
+      destAddress,
+      messageText
+    );
+
+    jesqueClient.enqueue(moMessageReceivedQueue, job);
   }
 }

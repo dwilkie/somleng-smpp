@@ -76,6 +76,15 @@ public class Main {
       "SMPP_DELIVERY_RECEIPT_UPDATE_STATUS_QUEUE"
     );
 
+    // Mo Message Receiver
+    final String moMessageReceivedWorker = System.getProperty(
+      "SMPP_MO_MESSAGE_RECEIVED_WORKER"
+    );
+
+    final String moMessageReceivedQueue = System.getProperty(
+      "SMPP_MO_MESSAGE_RECEIVED_QUEUE"
+    );
+
     for (int smppServerCounter = 0; smppServerCounter < smppServerNames.length; smppServerCounter++) {
       String smppServerKey = smppServerNames[smppServerCounter].toUpperCase();
       int numOfThreads = Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_MT_THREAD_SIZE", "1"));
@@ -83,7 +92,7 @@ public class Main {
       final LoadBalancedList<OutboundClient> balancedList = LoadBalancedLists.synchronizedList(new RoundRobinLoadBalancedList<OutboundClient>());
 
       for (int threadCounter = 0; threadCounter < numOfThreads; threadCounter++) {
-        balancedList.set(createClient(smppClientMessageService, threadCounter, smppServerKey, jesqueConfig, deliveryReceiptUpdateStatusWorker, deliveryReceiptUpdateStatusQueue), 1);
+        balancedList.set(createClient(smppClientMessageService, threadCounter, smppServerKey, jesqueConfig, deliveryReceiptUpdateStatusWorker, deliveryReceiptUpdateStatusQueue, moMessageReceivedWorker, moMessageReceivedQueue), 1);
         totalNumOfThreads++;
       }
       smppServerBalancedLists.put(smppServerKey, balancedList);
@@ -285,14 +294,16 @@ public class Main {
     return smppConfigurationFile;
   }
 
-  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey, net.greghaines.jesque.Config jesqueConfig, String deliveryReceiptUpdateStatusWorker, String deliveryReceiptUpdateStatusQueue) {
+  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey, net.greghaines.jesque.Config jesqueConfig, String deliveryReceiptUpdateStatusWorker, String deliveryReceiptUpdateStatusQueue, String moMessageReceivedWorker, String moMessageReceivedQueue) {
     OutboundClient client = new OutboundClient();
 
     client.setSmppServerId(smppServerKey);
+
     client.setDeliveryReceiptUpdateStatusWorker(deliveryReceiptUpdateStatusWorker);
-
-
     client.setDeliveryReceiptUpdateStatusQueue(deliveryReceiptUpdateStatusQueue);
+
+    client.setMoMessageReceivedWorker(moMessageReceivedWorker);
+    client.setMoMessageReceivedQueue(moMessageReceivedQueue);
 
     client.setJesqueClient(new net.greghaines.jesque.client.ClientImpl(jesqueConfig));
     client.initialize(getSmppSessionConfiguration(i, smppServerKey), smppClientMessageService);

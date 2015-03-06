@@ -3,7 +3,6 @@ package me.chibitxt.smsc;
 import com.cloudhopper.smpp.pdu.DeliverSm;
 import com.cloudhopper.smpp.pdu.PduResponse;
 
-import com.cloudhopper.smpp.type.Address;
 import com.cloudhopper.smpp.SmppConstants;
 import com.cloudhopper.smpp.tlv.Tlv;
 import com.cloudhopper.smpp.tlv.TlvConvertException;
@@ -33,17 +32,9 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
   }
 
   private void handleMoMessage(OutboundClient client, DeliverSm pduRequest) {
-    DeliverSm mo = (DeliverSm) pduRequest;
-    Address sourceAddress = mo.getSourceAddress();
-    Address destAddress = mo.getDestAddress();
+    byte characterEncoding = DataCoding.parse(pduRequest.getDataCoding()).getCharacterEncoding();
     String smppServerId = client.getSmppServerId();
 
-    byte dcs = mo.getDataCoding();
-
-    DataCoding dataCoding = DataCoding.parse(dcs);
-    byte characterEncoding = dataCoding.getCharacterEncoding();
-
-    byte[] shortMessage = mo.getShortMessage();
     String charsetName;
 
     if(characterEncoding == DataCoding.CHAR_ENC_UCS2) {
@@ -56,8 +47,11 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
       charsetName = CharsetUtil.NAME_UTF_8;
     }
 
-    String messageText = CharsetUtil.decode(shortMessage, charsetName);
-    System.out.println(sourceAddress + ", " + destAddress + ", " + messageText);
+    client.moMessageReceived(
+      pduRequest.getSourceAddress().getAddress(),
+      pduRequest.getDestAddress().getAddress(),
+      CharsetUtil.decode(pduRequest.getShortMessage(), charsetName)
+    );
   }
 
   private void handleDeliveryReceipt(OutboundClient client, DeliverSm pduRequest) {
