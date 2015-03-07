@@ -204,6 +204,8 @@ public class Main {
       int redisPort = redisUrl.getPort();
       String redisUserInfo = redisUrl.getUserInfo();
 
+      configBuilder.withNamespace("");
+
       if (redisHost != null) {
         configBuilder.withHost(redisHost);
       }
