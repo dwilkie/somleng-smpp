@@ -233,7 +233,7 @@ public class Main {
     worker.getWorkerEventEmitter().addListener(new net.greghaines.jesque.worker.WorkerListener(){
        public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
         if (runner instanceof MtMessageJobRunner) {
-            ((MtMessageJobRunner) runner).setQueue(blockingQueue);
+          ((MtMessageJobRunner) runner).setQueue(blockingQueue);
         }
       }
     }, net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE);
