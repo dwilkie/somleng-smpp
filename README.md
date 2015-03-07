@@ -50,7 +50,7 @@ This will start Sidekiq which will process the required jobs in Ruby
 From yet another terminal run:
 
 ```
-bundle exec foreman start sidekiq_worker -e .chibi_smsc_configuration
+bundle exec foreman start sidekiq_worker -e .chibi_smsc_configuration -f Procfile.dev
 ```
 
 ### Remotely
