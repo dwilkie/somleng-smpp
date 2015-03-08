@@ -28,6 +28,7 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
         handleMoMessage(client, pduRequest);
       }
     }
+
     return pduRequest.createResponse();
   }
 
