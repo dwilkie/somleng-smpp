@@ -41,20 +41,10 @@ public class Main {
   public static void main(String[] args) throws IOException, RecoverablePduException, InterruptedException,
       SmppChannelException, UnrecoverablePduException, SmppTimeoutException {
 
+    // Configuration
+
     String smppConfigurationFile = getConfigFile(args);
     loadSystemProperties(smppConfigurationFile);
-
-    DummySmppClientMessageService smppClientMessageService = new DummySmppClientMessageService();
-
-    net.greghaines.jesque.Config jesqueConfig = setupJesque();
-
-    final String smppServersString = System.getProperty("SMPP_SERVERS", "default");
-
-    final String[] smppServerNames = smppServersString.split(";");
-
-    final Map<String,LoadBalancedList<OutboundClient>> smppServerBalancedLists = new HashMap<String,LoadBalancedList<OutboundClient>>(smppServerNames.length);
-
-    int totalNumOfThreads = 0;
 
     // External Queues and Workers
 
@@ -85,6 +75,24 @@ public class Main {
       "SMPP_MO_MESSAGE_RECEIVED_QUEUE"
     );
 
+    // Jesque
+    final long jesqueClientConnectionCheckPeriod = Long.parseLong(
+      System.getProperty("SMPP_JESQUE_CLIENT_CONNECTION_CHECK_PERIOD", "15")
+    );
+
+    // SMSCs to connect to
+    final String smppServersString = System.getProperty("SMPP_SERVERS", "default");
+
+
+    DummySmppClientMessageService smppClientMessageService = new DummySmppClientMessageService();
+    final String[] smppServerNames = smppServersString.split(";");
+
+    final Map<String,LoadBalancedList<OutboundClient>> smppServerBalancedLists = new HashMap<String,LoadBalancedList<OutboundClient>>(smppServerNames.length);
+
+    net.greghaines.jesque.Config jesqueConfig = setupJesque();
+
+    int totalNumOfThreads = 0;
+
     for (int smppServerCounter = 0; smppServerCounter < smppServerNames.length; smppServerCounter++) {
       String smppServerKey = smppServerNames[smppServerCounter].toUpperCase();
       int numOfThreads = Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_MT_THREAD_SIZE", "1"));
@@ -92,7 +100,19 @@ public class Main {
       final LoadBalancedList<OutboundClient> balancedList = LoadBalancedLists.synchronizedList(new RoundRobinLoadBalancedList<OutboundClient>());
 
       for (int threadCounter = 0; threadCounter < numOfThreads; threadCounter++) {
-        balancedList.set(createClient(smppClientMessageService, threadCounter, smppServerKey, jesqueConfig, deliveryReceiptUpdateStatusWorker, deliveryReceiptUpdateStatusQueue, moMessageReceivedWorker, moMessageReceivedQueue), 1);
+        balancedList.set(
+          createClient(
+            smppClientMessageService,
+            threadCounter,
+            smppServerKey,
+            jesqueConfig,
+            jesqueClientConnectionCheckPeriod,
+            deliveryReceiptUpdateStatusWorker,
+            deliveryReceiptUpdateStatusQueue,
+            moMessageReceivedWorker,
+            moMessageReceivedQueue
+          ),
+        1);
         totalNumOfThreads++;
       }
       smppServerBalancedLists.put(smppServerKey, balancedList);
@@ -102,7 +122,12 @@ public class Main {
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
-    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(jesqueConfig);
+    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
+      jesqueConfig,
+      jesqueClientConnectionCheckPeriod,
+      jesqueClientConnectionCheckPeriod,
+      java.util.concurrent.TimeUnit.SECONDS
+    );
 
     final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
     ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jesqueMtWorker, jesqueMtClient);
@@ -296,7 +321,7 @@ public class Main {
     return smppConfigurationFile;
   }
 
-  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey, net.greghaines.jesque.Config jesqueConfig, String deliveryReceiptUpdateStatusWorker, String deliveryReceiptUpdateStatusQueue, String moMessageReceivedWorker, String moMessageReceivedQueue) {
+  private static OutboundClient createClient(DummySmppClientMessageService smppClientMessageService, int i, final String smppServerKey, net.greghaines.jesque.Config jesqueConfig, long jesqueClientConnectionCheckPeriod, String deliveryReceiptUpdateStatusWorker, String deliveryReceiptUpdateStatusQueue, String moMessageReceivedWorker, String moMessageReceivedQueue) {
     OutboundClient client = new OutboundClient();
 
     client.setSmppServerId(smppServerKey);
@@ -307,7 +332,12 @@ public class Main {
     client.setMoMessageReceivedWorker(moMessageReceivedWorker);
     client.setMoMessageReceivedQueue(moMessageReceivedQueue);
 
-    client.setJesqueClient(new net.greghaines.jesque.client.ClientImpl(jesqueConfig));
+    client.setJesqueClient(new net.greghaines.jesque.client.ClientImpl(
+      jesqueConfig,
+      jesqueClientConnectionCheckPeriod,
+      jesqueClientConnectionCheckPeriod,
+      java.util.concurrent.TimeUnit.SECONDS)
+    );
     client.initialize(getSmppSessionConfiguration(i, smppServerKey), smppClientMessageService);
     client.scheduleReconnect();
     return client;
