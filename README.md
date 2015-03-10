@@ -12,6 +12,30 @@ See [.chibi_smsc_configuration](https://github.com/dwilkie/chibi-smsc/blob/maste
 mvn package
 ```
 
+### Building against modified local dependencies
+
+Sometimes you might want to download a dependency and modify it locally then build against it. To do this `cd` into the local dependency's directory then run:
+
+```
+mvn install
+```
+
+You should get some output like
+
+```
+Building <package> <version>-SNAPSHOT
+```
+
+This will install the dependency with the version `-SNAPSHOT`.
+
+Finally you need to specify the `SNAPSHOT` version in your [pom.xml](https://github.com/dwilkie/chibi-smsc/blob/master/pom.xml)
+
+```xml
+<dependency>
+  <version>version-SNAPSHOT</version>
+</dependency>
+```
+
 ## Testing
 
 ### Locally

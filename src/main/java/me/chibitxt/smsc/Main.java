@@ -120,8 +120,18 @@ public class Main {
       true
     );
 
-    final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(jesqueConfig, mtMessageQueue);
-    ShutdownClient shutdownClient = new ShutdownClient(executorService, smppServerBalancedLists, jesqueMtWorker, jesqueMtClient);
+    final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(
+      jesqueConfig,
+      mtMessageQueue
+    );
+
+    ShutdownClient shutdownClient = new ShutdownClient(
+      executorService,
+      smppServerBalancedLists,
+      jesqueMtWorker,
+      jesqueMtClient
+    );
+
     Thread shutdownHook = new Thread(shutdownClient);
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
@@ -146,21 +156,21 @@ public class Main {
                   final String mtMessageText = job.getMessageBody();
                   byte[] textBytes;
                   byte dataCoding;
-                  String destCharsetName;
+                  Charset destCharset;
 
                   if (GSMCharset.canRepresent(mtMessageText)) {
-                    destCharsetName = CharsetUtil.NAME_GSM;
+                    destCharset = CharsetUtil.CHARSET_GSM;
                     dataCoding = SmppConstants.DATA_CODING_GSM;
                   } else {
                     dataCoding = SmppConstants.DATA_CODING_UCS2;
                     if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
-                      destCharsetName = CharsetUtil.NAME_UCS_2LE;
+                      destCharset = CharsetUtil.CHARSET_UCS_2LE;
                     } else {
-                      destCharsetName = CharsetUtil.NAME_UCS_2;
+                      destCharset = CharsetUtil.CHARSET_UCS_2;
                     }
                   }
 
-                  textBytes = CharsetUtil.encode(mtMessageText, destCharsetName);
+                  textBytes = CharsetUtil.encode(mtMessageText, destCharset);
 
                   SubmitSm submit = new SubmitSm();
                   int sourceTon = Integer.parseInt(
@@ -244,15 +254,29 @@ public class Main {
 
   private static final net.greghaines.jesque.worker.Worker startJesqueWorker(final net.greghaines.jesque.Config jesqueConfig, final BlockingQueue blockingQueue) {
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
-    final net.greghaines.jesque.worker.Worker worker = new net.greghaines.jesque.worker.WorkerImpl(jesqueConfig,
-       Arrays.asList(queueName), new net.greghaines.jesque.worker.MapBasedJobFactory(net.greghaines.jesque.utils.JesqueUtils.map(net.greghaines.jesque.utils.JesqueUtils.entry(MtMessageJobRunner.class.getSimpleName(), MtMessageJobRunner.class))));
-    worker.getWorkerEventEmitter().addListener(new net.greghaines.jesque.worker.WorkerListener(){
-       public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
-        if (runner instanceof MtMessageJobRunner) {
-          ((MtMessageJobRunner) runner).setQueue(blockingQueue);
+    final net.greghaines.jesque.worker.Worker worker = new net.greghaines.jesque.worker.WorkerImpl(
+      jesqueConfig,
+      Arrays.asList(queueName),
+      new net.greghaines.jesque.worker.MapBasedJobFactory(
+        net.greghaines.jesque.utils.JesqueUtils.map(
+          net.greghaines.jesque.utils.JesqueUtils.entry(
+            MtMessageJobRunner.class.getSimpleName(),
+            MtMessageJobRunner.class
+          )
+        )
+      )
+    );
+
+    worker.getWorkerEventEmitter().addListener(
+      new net.greghaines.jesque.worker.WorkerListener() {
+        public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
+          if (runner instanceof MtMessageJobRunner) {
+            ((MtMessageJobRunner) runner).setQueue(blockingQueue);
+          }
         }
-      }
-    }, net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE);
+      },
+      net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE
+    );
 
     final Thread workerThread = new Thread(worker);
     workerThread.start();
