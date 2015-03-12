@@ -381,6 +381,7 @@ public class Main {
       config.setSystemType(systemType);
     }
 
+    config.setBindTimeout(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_BIND_TIMEOUT", "5000")));
     config.setHost(System.getProperty(smppServerKey + "_SMPP_HOST", "127.0.0.1"));
     config.setPort(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_PORT", "2776")));
     config.setConnectTimeout(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_CONNECTION_TIMEOUT", "10000")));
