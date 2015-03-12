@@ -375,6 +375,12 @@ public class Main {
       config.setType(SmppBindType.TRANSMITTER);
     }
 
+    String systemType = System.getProperty(smppServerKey + "_SMPP_SYSTEM_TYPE");
+
+    if(systemType != null) {
+      config.setSystemType(systemType);
+    }
+
     config.setHost(System.getProperty(smppServerKey + "_SMPP_HOST", "127.0.0.1"));
     config.setPort(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_PORT", "2776")));
     config.setConnectTimeout(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_CONNECTION_TIMEOUT", "10000")));
