@@ -366,7 +366,15 @@ public class Main {
     SmppSessionConfiguration config = new SmppSessionConfiguration();
     config.setWindowSize(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_WINDOW_SIZE", "5")));
     config.setName(smppServerKey + ".Session." + i);
-    config.setType(SmppBindType.TRANSCEIVER);
+
+    String bindType = System.getProperty(smppServerKey + "_SMPP_BIND_TYPE", "TRANSCEIVER");
+
+    if(bindType == "TRANSCEIVER") {
+      config.setType(SmppBindType.TRANSCEIVER);
+    } else {
+      config.setType(SmppBindType.TRANSMITTER);
+    }
+
     config.setHost(System.getProperty(smppServerKey + "_SMPP_HOST", "127.0.0.1"));
     config.setPort(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_PORT", "2776")));
     config.setConnectTimeout(Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_CONNECTION_TIMEOUT", "10000")));
