@@ -109,6 +109,12 @@ sudo tcpdump -i eth0 -nnvvS dst host <public-ip-of-vpn-host-not-internal-ip> -w 
 sudo tcpdump -i eth0 -nnvvS dst host 174.129.212.2 -w "`date +'%Y-%m-%d'`_description.cap"
 ```
 
+OR
+
+```
+sudo tcpdump -i eth0 -nnvvS src host <private-ip-of-connected-smpp-server> -w "`date +'%Y-%m-%d'`_description.cap"
+```
+
 ### Download the packets locally
 
 ```
