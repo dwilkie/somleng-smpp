@@ -191,9 +191,13 @@ public class Main {
                   final String destAddress = job.getDestAddress();
                   submit.setDestAddress(new Address((byte) destTon, (byte) destNpi, destAddress));
                   submit.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
-                  submit.setServiceType(
-                    System.getProperty(preferredSmppServerName + "_SMPP_SERVICE_TYPE", "vma")
-                  );
+
+                  String serviceType = System.getProperty(preferredSmppServerName + "_SMPP_SERVICE_TYPE");
+
+                  if(serviceType != null) {
+                    submit.setServiceType(serviceType);
+                  }
+
                   submit.setDataCoding(dataCoding);
                   submit.setShortMessage(textBytes);
                   final SubmitSmResp submit1 = session.submit(submit, 10000);

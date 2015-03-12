@@ -84,7 +84,7 @@ From the development machine first charge `REDISTOGO_URL` in [.chibi_smsc_config
 Then run:
 
 ```
-bundle exec foreman run ruby enqueue_mt.rb -e .chibi_smsc_configuration
+bundle exec foreman run -e .chibi_smsc_configuration ruby enqueue_mt.rb
 ```
 
 This will enqueue a job on the `REDISTOGO` server and should be picked up by the java process on the remote server.
