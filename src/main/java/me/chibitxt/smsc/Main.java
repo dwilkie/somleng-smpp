@@ -155,20 +155,31 @@ public class Main {
                   final int mtMessageExternalId = job.getExternalMessageId();
                   final String mtMessageText = job.getMessageBody();
                   byte[] textBytes;
-                  byte dataCoding;
+                  byte dataCoding = SmppConstants.DATA_CODING_UCS2; // default data coding
                   Charset destCharset;
 
                   if (GSMCharset.canRepresent(mtMessageText)) {
-                    destCharset = CharsetUtil.CHARSET_GSM;
-
                     if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
+                      destCharset = CharsetUtil.CHARSET_GSM;
                       dataCoding = SmppConstants.DATA_CODING_GSM;
                     }
                     else {
-                      dataCoding = SmppConstants.DATA_CODING_DEFAULT;
+                      java.nio.charset.CharsetEncoder asciiEncoder;
+                      asciiEncoder = java.nio.charset.Charset.forName("US-ASCII").newEncoder();
+
+                      if(asciiEncoder.canEncode(mtMessageText)) {
+                        // encode as ASCII and use set data-coding to Default SMSC Alphabet
+                        dataCoding = SmppConstants.DATA_CODING_DEFAULT;
+                        destCharset = CharsetUtil.CHARSET_UTF_8; // same as ascii
+                      } else {
+                        destCharset = CharsetUtil.CHARSET_UCS_2;
+                      }
                     }
                   } else {
-                    dataCoding = SmppConstants.DATA_CODING_UCS2;
+                    destCharset = CharsetUtil.CHARSET_UCS_2;
+                  }
+
+                  if(destCharset == CharsetUtil.CHARSET_UCS_2) {
                     if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
                       destCharset = CharsetUtil.CHARSET_UCS_2LE;
                     } else {
