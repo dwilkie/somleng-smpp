@@ -160,7 +160,13 @@ public class Main {
 
                   if (GSMCharset.canRepresent(mtMessageText)) {
                     destCharset = CharsetUtil.CHARSET_GSM;
-                    dataCoding = SmppConstants.DATA_CODING_GSM;
+
+                    if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
+                      dataCoding = SmppConstants.DATA_CODING_GSM;
+                    }
+                    else {
+                      dataCoding = SmppConstants.DATA_CODING_DEFAULT;
+                    }
                   } else {
                     dataCoding = SmppConstants.DATA_CODING_UCS2;
                     if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
