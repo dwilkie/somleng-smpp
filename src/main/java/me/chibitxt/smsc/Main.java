@@ -4,6 +4,8 @@ import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.commons.charset.GSMCharset;
 import com.cloudhopper.commons.charset.Charset;
 
+import com.cloudhopper.commons.gsm.GsmUtil;
+
 import com.cloudhopper.commons.util.*;
 import com.cloudhopper.smpp.*;
 import com.cloudhopper.smpp.pdu.SubmitSm;
@@ -22,6 +24,7 @@ import java.util.HashMap;
 
 import java.io.FileInputStream;
 import java.util.Properties;
+import java.util.Random;
 
 import java.nio.ByteOrder;
 
@@ -155,7 +158,10 @@ public class Main {
                   final int mtMessageExternalId = job.getExternalMessageId();
                   final String mtMessageText = job.getMessageBody();
                   byte[] textBytes;
-                  byte dataCoding = SmppConstants.DATA_CODING_UCS2; // default data coding
+
+                  // default data coding to UCS2
+                  byte dataCoding = SmppConstants.DATA_CODING_UCS2;
+
                   Charset destCharset;
 
                   if (GSMCharset.canRepresent(mtMessageText)) {
@@ -180,7 +186,11 @@ public class Main {
                   }
 
                   if(destCharset == CharsetUtil.CHARSET_UCS_2) {
-                    if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0")) {
+                    if(
+                      ChibiUtil.getBooleanProperty(
+                        preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0"
+                      )
+                    ) {
                       destCharset = CharsetUtil.CHARSET_UCS_2LE;
                     } else {
                       destCharset = CharsetUtil.CHARSET_UCS_2;
@@ -189,42 +199,54 @@ public class Main {
 
                   textBytes = CharsetUtil.encode(mtMessageText, destCharset);
 
-                  SubmitSm submit = new SubmitSm();
-                  int sourceTon = Integer.parseInt(
-                    System.getProperty(preferredSmppServerName + "_SMPP_SOURCE_TON", "3")
-                  );
-                  int sourceNpi = Integer.parseInt(
-                    System.getProperty(preferredSmppServerName + "_SMPP_SOURCE_NPI", "0")
-                  );
-
                   final String sourceAddress = job.getSourceAddress();
-                  submit.setSourceAddress(new Address((byte) sourceTon, (byte) sourceNpi, sourceAddress));
-                  int destTon = Integer.parseInt(
-                    System.getProperty(preferredSmppServerName + "_SMPP_DESTINATION_TON", "1")
-                  );
-                  int destNpi = Integer.parseInt(
-                    System.getProperty(preferredSmppServerName + "_SMPP_DESTINATION_NPI", "1")
-                  );
                   final String destAddress = job.getDestAddress();
-                  submit.setDestAddress(new Address((byte) destTon, (byte) destNpi, destAddress));
-                  submit.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
 
-                  String serviceType = System.getProperty(preferredSmppServerName + "_SMPP_SERVICE_TYPE");
+                  SubmitSmResp submitSmResponse = new SubmitSmResp();
 
-                  if(serviceType != null) {
-                    submit.setServiceType(serviceType);
+                  // http://stackoverflow.com/questions/21098643/smpp-submit-long-message-and-message-split
+                  // 160 * 7bits == 140 Bytes (7 bit character encoding)
+                  // 140 * 8bits == 140 Bytes (8 bit character encoding)
+                  // 70 * 16bits == 140 Bytes (16 bit character encoding)
+
+                  // generate new reference number
+                  byte[] referenceNum = new byte[1];
+                  new Random().nextBytes(referenceNum);
+
+                  byte[][] byteMessagesArray = GsmUtil.createConcatenatedBinaryShortMessages(
+                    textBytes,
+                    referenceNum[0]
+                  );
+
+                  if(byteMessagesArray != null) {
+                    for (int i = 0; i < byteMessagesArray.length; i++) {
+                      SubmitSm submit = setupMtMessage(
+                        preferredSmppServerName,
+                        sourceAddress,
+                        destAddress,
+                        byteMessagesArray[i],
+                        dataCoding
+                      );
+                      submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
+                      submitSmResponse = sendMtMessage(session, submit);
+                    }
+                  } else {
+                    SubmitSm submit = setupMtMessage(
+                      preferredSmppServerName,
+                      sourceAddress,
+                      destAddress,
+                      textBytes,
+                      dataCoding
+                    );
+                    submitSmResponse = sendMtMessage(session, submit);
                   }
-
-                  submit.setDataCoding(dataCoding);
-                  submit.setShortMessage(textBytes);
-                  final SubmitSmResp submit1 = session.submit(submit, 10000);
 
                   final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
                     mtMessageUpdateStatusWorker,
                     preferredSmppServerName,
                     mtMessageExternalId,
-                    submit1.getMessageId(),
-                    submit1.getCommandStatus() == SmppConstants.STATUS_OK
+                    submitSmResponse.getMessageId(),
+                    submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
                   );
 
                   jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
@@ -239,6 +261,46 @@ public class Main {
         });
       }
     }
+  }
+
+  private static SubmitSm setupMtMessage(String preferredSmppServerName, String sourceAddress, String destAddress, byte [] textBytes, byte dataCoding) throws SmppInvalidArgumentException {
+    SubmitSm submit = new SubmitSm();
+    submit.setDataCoding(dataCoding);
+    submit.setShortMessage(textBytes);
+
+    int sourceTon = Integer.parseInt(
+      System.getProperty(preferredSmppServerName + "_SMPP_SOURCE_TON", "3")
+    );
+
+    int sourceNpi = Integer.parseInt(
+      System.getProperty(preferredSmppServerName + "_SMPP_SOURCE_NPI", "0")
+    );
+
+    submit.setSourceAddress(new Address((byte) sourceTon, (byte) sourceNpi, sourceAddress));
+
+    int destTon = Integer.parseInt(
+      System.getProperty(preferredSmppServerName + "_SMPP_DESTINATION_TON", "1")
+    );
+
+    int destNpi = Integer.parseInt(
+      System.getProperty(preferredSmppServerName + "_SMPP_DESTINATION_NPI", "1")
+    );
+
+    submit.setDestAddress(new Address((byte) destTon, (byte) destNpi, destAddress));
+
+    submit.setRegisteredDelivery(SmppConstants.REGISTERED_DELIVERY_SMSC_RECEIPT_REQUESTED);
+    String serviceType = System.getProperty(preferredSmppServerName + "_SMPP_SERVICE_TYPE");
+
+    if(serviceType != null) {
+      submit.setServiceType(serviceType);
+    }
+
+    return submit;
+  }
+
+  private static final SubmitSmResp sendMtMessage(SmppSession session, SubmitSm submit) throws Exception {
+    final SubmitSmResp submit1 = session.submit(submit, 10000);
+    return submit1;
   }
 
   private static final net.greghaines.jesque.Config setupJesque() {
