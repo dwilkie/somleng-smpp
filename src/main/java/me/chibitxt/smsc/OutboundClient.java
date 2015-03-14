@@ -261,13 +261,16 @@ public class OutboundClient extends Client {
     jesqueClient.enqueue(deliveryReceiptUpdateStatusQueue, job);
   }
 
-  public void moMessageReceived(String sourceAddress, String destAddress, String messageText) {
+  public void moMessageReceived(String sourceAddress, String destAddress, String messageText, int csmsReferenceNum, int csmsNumParts, int csmsSeqNum) {
     final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
       moMessageReceivedWorker,
       smppServerId,
       sourceAddress,
       destAddress,
-      messageText
+      messageText,
+      csmsReferenceNum,
+      csmsNumParts,
+      csmsSeqNum
     );
 
     jesqueClient.enqueue(moMessageReceivedQueue, job);

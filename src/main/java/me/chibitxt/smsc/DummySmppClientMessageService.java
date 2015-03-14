@@ -8,8 +8,11 @@ import com.cloudhopper.smpp.tlv.Tlv;
 import com.cloudhopper.smpp.tlv.TlvConvertException;
 
 import com.cloudhopper.commons.charset.CharsetUtil;
+import com.cloudhopper.commons.charset.Charset;
 import com.cloudhopper.smpp.util.SmppUtil;
+
 import com.cloudhopper.commons.gsm.DataCoding;
+import com.cloudhopper.commons.gsm.GsmUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,22 +39,55 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
     byte characterEncoding = DataCoding.parse(pduRequest.getDataCoding()).getCharacterEncoding();
     String smppServerId = client.getSmppServerId();
 
-    String charsetName;
+    Charset charset;
 
     if(characterEncoding == DataCoding.CHAR_ENC_UCS2) {
       if(ChibiUtil.getBooleanProperty(smppServerId + "_SMPP_MO_UCS2_LITTLE_ENDIANNESS", "0")) {
-        charsetName = CharsetUtil.NAME_UCS_2LE;
+        charset = CharsetUtil.CHARSET_UCS_2LE;
       } else {
-        charsetName = CharsetUtil.NAME_UCS_2;
+        charset = CharsetUtil.CHARSET_UCS_2;
       }
     } else {
-      charsetName = CharsetUtil.NAME_UTF_8;
+      charset = CharsetUtil.CHARSET_UTF_8;
+    }
+
+
+    String sourceAddress = pduRequest.getSourceAddress().getAddress();
+    String destAddress = pduRequest.getDestAddress().getAddress();
+    byte [] fullMessageBytes = pduRequest.getShortMessage();
+    byte [] messageBytes = fullMessageBytes;
+
+    // handle CMSC
+    // Field 4 (1 octet): 00-FF, CSMS reference number, must be same for all the SMS parts in the CSMS
+    // Field 5 (1 octet): 00-FF, total number of parts.
+    // Field 6 (1 octet): 00-FF, this part's number in the sequence.
+
+    // See also
+    // https://github.com/twitter/cloudhopper-commons/blob/master/ch-commons-gsm/src/main/java/com/cloudhopper/commons/gsm/GsmUtil.java
+    // http://en.wikipedia.org/wiki/Concatenated_SMS
+
+    // set up csms defaults
+    int csmsReferenceNum = 0;
+    int csmsNumParts = 1;
+    int csmsSeqNum = 1;
+
+    if(SmppUtil.isUserDataHeaderIndicatorEnabled(pduRequest.getEsmClass())) {
+      byte [] userDataHeader = GsmUtil.getShortMessageUserDataHeader(fullMessageBytes);
+      messageBytes = GsmUtil.getShortMessageUserData(fullMessageBytes);
+
+      // (byte & 0xFF) converts byte to unsigned int
+      csmsReferenceNum = userDataHeader[3] & 0xFF;
+      csmsNumParts = userDataHeader[4] & 0xFF;
+      csmsSeqNum = userDataHeader[5] & 0xFF;
     }
 
     client.moMessageReceived(
-      pduRequest.getSourceAddress().getAddress(),
-      pduRequest.getDestAddress().getAddress(),
-      CharsetUtil.decode(pduRequest.getShortMessage(), charsetName)
+      sourceAddress,
+      destAddress,
+      CharsetUtil.decode(messageBytes, charset),
+      csmsReferenceNum,
+      csmsNumParts,
+      csmsSeqNum
     );
   }
 
