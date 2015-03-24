@@ -258,6 +258,9 @@ public class OutboundClient extends Client {
       deliveryStatus
     );
 
+    job.setUnknownField("retry", true);
+    job.setUnknownField("queue", deliveryReceiptUpdateStatusQueue);
+
     jesqueClient.enqueue(deliveryReceiptUpdateStatusQueue, job);
   }
 
@@ -272,6 +275,9 @@ public class OutboundClient extends Client {
       csmsNumParts,
       csmsSeqNum
     );
+
+    job.setUnknownField("retry", true);
+    job.setUnknownField("queue", moMessageReceivedQueue);
 
     jesqueClient.enqueue(moMessageReceivedQueue, job);
   }

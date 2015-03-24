@@ -249,6 +249,9 @@ public class Main {
                     submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
                   );
 
+                  job.setUnknownField("retry", true);
+                  job.setUnknownField("queue", mtMessageUpdateStatusQueue);
+
                   jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
                   sent = alreadySent.incrementAndGet();
                 }
