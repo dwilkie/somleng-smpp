@@ -40,7 +40,12 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.ParseException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Main {
+  private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
   public static void main(String[] args) throws IOException, RecoverablePduException, InterruptedException,
       SmppChannelException, UnrecoverablePduException, SmppTimeoutException {
 
@@ -257,7 +262,7 @@ public class Main {
                 }
               }
             } catch (Exception e) {
-              System.err.println(e.toString());
+              logger.error(e.toString(), e);
               return;
             }
           }
