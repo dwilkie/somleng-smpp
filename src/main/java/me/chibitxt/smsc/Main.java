@@ -91,7 +91,7 @@ public class Main {
 
     final Map<String,LoadBalancedList<OutboundClient>> smppServerBalancedLists = new HashMap<String,LoadBalancedList<OutboundClient>>(smppServerNames.length);
 
-    net.greghaines.jesque.Config jesqueConfig = setupJesque();
+    final net.greghaines.jesque.Config jesqueConfig = setupJesque();
 
     int totalNumOfThreads = 0;
 
@@ -123,11 +123,6 @@ public class Main {
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
-    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientPoolImpl(
-      jesqueConfig,
-      net.greghaines.jesque.utils.PoolUtils.createJedisPool(jesqueConfig)
-    );
-
     final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(
       jesqueConfig,
       mtMessageQueue
@@ -136,8 +131,7 @@ public class Main {
     ShutdownClient shutdownClient = new ShutdownClient(
       executorService,
       smppServerBalancedLists,
-      jesqueMtWorker,
-      jesqueMtClient
+      jesqueMtWorker
     );
 
     Thread shutdownHook = new Thread(shutdownClient);
@@ -257,7 +251,14 @@ public class Main {
                   job.setUnknownField("retry", true);
                   job.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
+                  final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
+                    jesqueConfig,
+                    true
+                  );
+
                   jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
+                  jesqueMtClient.end();
+
                   sent = alreadySent.incrementAndGet();
                 }
               }
