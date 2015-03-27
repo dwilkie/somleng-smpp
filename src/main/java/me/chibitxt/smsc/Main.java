@@ -47,7 +47,7 @@ public class Main {
   private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
   public static void main(String[] args) throws IOException, RecoverablePduException, InterruptedException,
-      SmppChannelException, UnrecoverablePduException, SmppTimeoutException {
+      SmppChannelException, UnrecoverablePduException, SmppTimeoutException, URISyntaxException {
 
     // Configuration
 
@@ -311,11 +311,38 @@ public class Main {
     return submit1;
   }
 
-  private static final redis.clients.jedis.JedisPool createJedisPool() {
+  private static final redis.clients.jedis.JedisPool createJedisPool() throws URISyntaxException {
     redis.clients.jedis.JedisPoolConfig jedisPoolConfig = new redis.clients.jedis.JedisPoolConfig();
     int maxRedisConnections = Integer.parseInt(System.getProperty("MAX_REDIS_CONNECTIONS", "256"));
     jedisPoolConfig.setMaxTotal(maxRedisConnections);
-    return new redis.clients.jedis.JedisPool(jedisPoolConfig, getRedisUrl());
+
+    URI redisUri = getRedisUri();
+
+    String redisHost = getRedisHost(redisUri);
+    int redisPort = getRedisPort(redisUri);
+    String redisUserInfo = getRedisUserInfo(redisUri);
+
+    redis.clients.jedis.JedisPool jedisPool;
+
+    if (redisUserInfo == null) {
+      jedisPool = new redis.clients.jedis.JedisPool(
+        jedisPoolConfig,
+        redisHost,
+        redisPort,
+        redis.clients.jedis.Protocol.DEFAULT_TIMEOUT
+      );
+    }
+    else {
+      jedisPool = new redis.clients.jedis.JedisPool(
+        jedisPoolConfig,
+        redisHost,
+        redisPort,
+        redis.clients.jedis.Protocol.DEFAULT_TIMEOUT,
+        getRedisPassword(redisUserInfo)
+      );
+    }
+
+    return jedisPool;
   }
 
   private static URI getRedisUri() throws URISyntaxException {
@@ -345,32 +372,26 @@ public class Main {
     return redisUserInfo.split(":", 2)[1];
   }
 
-  private static final net.greghaines.jesque.Config setupJesque() {
+  private static final net.greghaines.jesque.Config setupJesque() throws URISyntaxException {
     final net.greghaines.jesque.ConfigBuilder configBuilder = new net.greghaines.jesque.ConfigBuilder();
-    try {
-      URI redisUri = getRedisUri();
+    URI redisUri = getRedisUri();
 
-      String redisHost = getRedisHost(redisUri);
-      int redisPort = getRedisPort(redisUri);
-      String redisUserInfo = getRedisUserInfo(redisUri);
+    String redisHost = getRedisHost(redisUri);
+    int redisPort = getRedisPort(redisUri);
+    String redisUserInfo = getRedisUserInfo(redisUri);
 
-      configBuilder.withNamespace("");
+    configBuilder.withNamespace("");
 
-      if (redisHost != null) {
-        configBuilder.withHost(redisHost);
-      }
-
-      if (redisPort > -1) {
-        configBuilder.withPort(redisPort);
-      }
-
-      if (redisUserInfo != null) {
-        configBuilder.withPassword(getRedisPassword(redisUserInfo));
-      }
+    if (redisHost != null) {
+      configBuilder.withHost(redisHost);
     }
-    catch (URISyntaxException e) {
-      logger.error(e.toString(), e);
-      System.exit(1);
+
+    if (redisPort > -1) {
+      configBuilder.withPort(redisPort);
+    }
+
+    if (redisUserInfo != null) {
+      configBuilder.withPassword(getRedisPassword(redisUserInfo));
     }
 
     return configBuilder.build();
@@ -407,21 +428,15 @@ public class Main {
     return worker;
   }
 
-  private static void loadSystemProperties(String configurationFile) {
+  private static void loadSystemProperties(String configurationFile) throws IOException {
     // set up new properties object
     // from the config file
-    try {
-      FileInputStream propFile = new FileInputStream(configurationFile);
-      Properties p = new Properties(System.getProperties());
-      p.load(propFile);
+    FileInputStream propFile = new FileInputStream(configurationFile);
+    Properties p = new Properties(System.getProperties());
+    p.load(propFile);
 
-      // set the system properties
-      System.setProperties(p);
-
-    } catch (IOException e) {
-      logger.error(e.toString(), e);
-      System.exit(1);
-    }
+    // set the system properties
+    System.setProperties(p);
   }
 
   private static String getConfigFile(String [] args) {
