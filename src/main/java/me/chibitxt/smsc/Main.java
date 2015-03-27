@@ -123,9 +123,9 @@ public class Main {
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
-    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
+    final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientPoolImpl(
       jesqueConfig,
-      true
+      createJedisPool()
     );
 
     final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(
@@ -311,15 +311,45 @@ public class Main {
     return submit1;
   }
 
+  private static final redis.clients.jedis.JedisPool createJedisPool() {
+    return new redis.clients.jedis.JedisPool(getRedisUrl());
+  }
+
+  private static URI getRedisUri() throws URISyntaxException {
+    return new URI(getRedisUrl());
+  }
+
+  private static String getRedisUrl() {
+    return System.getProperty(
+      System.getProperty("REDIS_PROVIDER", "YOUR_REDIS_PROVIDER"),
+      "127.0.0.1"
+    );
+  }
+
+  private static String getRedisHost(URI redisUri) {
+    return redisUri.getHost();
+  }
+
+  private static String getRedisUserInfo(URI redisUri) {
+    return redisUri.getUserInfo();
+  }
+
+  private static int getRedisPort(URI redisUri) {
+    return redisUri.getPort();
+  }
+
+  private static String getRedisPassword(String redisUserInfo) {
+    return redisUserInfo.split(":", 2)[1];
+  }
+
   private static final net.greghaines.jesque.Config setupJesque() {
     final net.greghaines.jesque.ConfigBuilder configBuilder = new net.greghaines.jesque.ConfigBuilder();
-    String redisUrlKey = System.getProperty("REDIS_PROVIDER", "YOUR_REDIS_PROVIDER");
     try {
-      URI redisUrl = new URI(System.getProperty(redisUrlKey, "127.0.0.1"));
+      URI redisUri = getRedisUri();
 
-      String redisHost = redisUrl.getHost();
-      int redisPort = redisUrl.getPort();
-      String redisUserInfo = redisUrl.getUserInfo();
+      String redisHost = getRedisHost(redisUri);
+      int redisPort = getRedisPort(redisUri);
+      String redisUserInfo = getRedisUserInfo(redisUri);
 
       configBuilder.withNamespace("");
 
@@ -332,11 +362,11 @@ public class Main {
       }
 
       if (redisUserInfo != null) {
-        configBuilder.withPassword(redisUserInfo.split(":",2)[1]);
+        configBuilder.withPassword(getRedisPassword(redisUserInfo));
       }
     }
     catch (URISyntaxException e) {
-      System.err.println(e.toString());
+      logger.error(e.toString(), e);
       System.exit(1);
     }
 
@@ -386,7 +416,7 @@ public class Main {
       System.setProperties(p);
 
     } catch (IOException e) {
-      System.err.println(e.toString());
+      logger.error(e.toString(), e);
       System.exit(1);
     }
   }
