@@ -312,7 +312,10 @@ public class Main {
   }
 
   private static final redis.clients.jedis.JedisPool createJedisPool() {
-    return new redis.clients.jedis.JedisPool(getRedisUrl());
+    redis.clients.jedis.JedisPoolConfig jedisPoolConfig = new redis.clients.jedis.JedisPoolConfig();
+    int maxRedisConnections = Integer.parseInt(System.getProperty("MAX_REDIS_CONNECTIONS", "256"));
+    jedisPoolConfig.setMaxTotal(maxRedisConnections);
+    return new redis.clients.jedis.JedisPool(jedisPoolConfig, getRedisUrl());
   }
 
   private static URI getRedisUri() throws URISyntaxException {
