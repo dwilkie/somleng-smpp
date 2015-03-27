@@ -99,7 +99,7 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
       String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
       client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
     } catch(TlvConvertException e) {
-      logger.warn("Error while converting TLV", e);
+      logger.error("Error while converting TLV", e);
     }
   }
 
