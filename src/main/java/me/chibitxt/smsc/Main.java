@@ -125,7 +125,7 @@ public class Main {
 
     final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientPoolImpl(
       jesqueConfig,
-      createJedisPool()
+      net.greghaines.jesque.utils.PoolUtils.createJedisPool(jesqueConfig)
     );
 
     final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(
@@ -309,40 +309,6 @@ public class Main {
   private static final SubmitSmResp sendMtMessage(SmppSession session, SubmitSm submit) throws Exception {
     final SubmitSmResp submit1 = session.submit(submit, 10000);
     return submit1;
-  }
-
-  private static final redis.clients.jedis.JedisPool createJedisPool() throws URISyntaxException {
-    redis.clients.jedis.JedisPoolConfig jedisPoolConfig = new redis.clients.jedis.JedisPoolConfig();
-    int maxRedisConnections = Integer.parseInt(System.getProperty("MAX_REDIS_CONNECTIONS", "256"));
-    jedisPoolConfig.setMaxTotal(maxRedisConnections);
-
-    URI redisUri = getRedisUri();
-
-    String redisHost = getRedisHost(redisUri);
-    int redisPort = getRedisPort(redisUri);
-    String redisUserInfo = getRedisUserInfo(redisUri);
-
-    redis.clients.jedis.JedisPool jedisPool;
-
-    if (redisUserInfo == null) {
-      jedisPool = new redis.clients.jedis.JedisPool(
-        jedisPoolConfig,
-        redisHost,
-        redisPort,
-        redis.clients.jedis.Protocol.DEFAULT_TIMEOUT
-      );
-    }
-    else {
-      jedisPool = new redis.clients.jedis.JedisPool(
-        jedisPoolConfig,
-        redisHost,
-        redisPort,
-        redis.clients.jedis.Protocol.DEFAULT_TIMEOUT,
-        getRedisPassword(redisUserInfo)
-      );
-    }
-
-    return jedisPool;
   }
 
   private static URI getRedisUri() throws URISyntaxException {
