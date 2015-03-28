@@ -143,155 +143,144 @@ public class Main {
       final String preferredSmppServerName = job.getPreferredSmppServerName();
       final long messagesToSend = 1;
       final AtomicLong alreadySent = new AtomicLong();
-      logger.info("---------GOT JOB!-----------");
-      // REMOVE THIS LOOP!!!!
-      for (int j = 0; j < 1; j++) {
-        executorService.execute(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              long sent = alreadySent.incrementAndGet();
-              logger.info("---------CHECK WHETHER WE HAVE SENT MESSAGE?------");
-              logger.info("---------SENT: " + sent + "------");
-              logger.info("---------MESSAGES TO SEND: " + messagesToSend + "------");
-              while (sent <= messagesToSend) {
-                // need to increment sent now so that two jobs don't get executed
-                final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
-                final SmppSession session = next.getSession();
+      executorService.execute(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            long sent = alreadySent.incrementAndGet();
+            while (sent <= messagesToSend) {
+              final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
+              final SmppSession session = next.getSession();
 
-                logger.info("---------CHECKING SESSION-------");
-                if (session != null && session.isBound()) {
-                  logger.info("---------SESSION IS BOUND!!!!-----------");
+              if (session != null && session.isBound()) {
 
-                  final int mtMessageExternalId = job.getExternalMessageId();
-                  final String mtMessageText = job.getMessageBody();
-                  byte[] textBytes;
+                final int mtMessageExternalId = job.getExternalMessageId();
+                final String mtMessageText = job.getMessageBody();
+                byte[] textBytes;
 
-                  // default data coding to UCS2
-                  byte dataCoding = SmppConstants.DATA_CODING_UCS2;
+                // default data coding to UCS2
+                byte dataCoding = SmppConstants.DATA_CODING_UCS2;
 
-                  Charset destCharset;
+                Charset destCharset;
 
-                  if (GSMCharset.canRepresent(mtMessageText)) {
-                    if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
-                      destCharset = CharsetUtil.CHARSET_GSM;
-                      dataCoding = SmppConstants.DATA_CODING_GSM;
-                    }
-                    else {
-                      java.nio.charset.CharsetEncoder asciiEncoder;
-                      asciiEncoder = java.nio.charset.Charset.forName("US-ASCII").newEncoder();
-
-                      if(asciiEncoder.canEncode(mtMessageText)) {
-                        // encode as ASCII and use set data-coding to Default SMSC Alphabet
-                        dataCoding = SmppConstants.DATA_CODING_DEFAULT;
-                        destCharset = CharsetUtil.CHARSET_UTF_8; // same as ascii
-                      } else {
-                        destCharset = CharsetUtil.CHARSET_UCS_2;
-                      }
-                    }
-                  } else {
-                    destCharset = CharsetUtil.CHARSET_UCS_2;
+                if (GSMCharset.canRepresent(mtMessageText)) {
+                  if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
+                    destCharset = CharsetUtil.CHARSET_GSM;
+                    dataCoding = SmppConstants.DATA_CODING_GSM;
                   }
+                  else {
+                    java.nio.charset.CharsetEncoder asciiEncoder;
+                    asciiEncoder = java.nio.charset.Charset.forName("US-ASCII").newEncoder();
 
-                  if(destCharset == CharsetUtil.CHARSET_UCS_2) {
-                    if(
-                      ChibiUtil.getBooleanProperty(
-                        preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0"
-                      )
-                    ) {
-                      destCharset = CharsetUtil.CHARSET_UCS_2LE;
+                    if(asciiEncoder.canEncode(mtMessageText)) {
+                      // encode as ASCII and use set data-coding to Default SMSC Alphabet
+                      dataCoding = SmppConstants.DATA_CODING_DEFAULT;
+                      destCharset = CharsetUtil.CHARSET_UTF_8; // same as ascii
                     } else {
                       destCharset = CharsetUtil.CHARSET_UCS_2;
                     }
                   }
+                } else {
+                  destCharset = CharsetUtil.CHARSET_UCS_2;
+                }
 
-                  textBytes = CharsetUtil.encode(mtMessageText, destCharset);
-
-                  final String sourceAddress = job.getSourceAddress();
-                  final String destAddress = job.getDestAddress();
-
-                  SubmitSmResp submitSmResponse = new SubmitSmResp();
-
-                  // http://stackoverflow.com/questions/21098643/smpp-submit-long-message-and-message-split
-                  // 160 * 7bits == 140 Bytes (7 bit character encoding)
-                  // 140 * 8bits == 140 Bytes (8 bit character encoding)
-                  // 70 * 16bits == 140 Bytes (16 bit character encoding)
-
-                  // generate new reference number
-                  byte[] referenceNum = new byte[1];
-                  new Random().nextBytes(referenceNum);
-
-                  byte[][] byteMessagesArray = GsmUtil.createConcatenatedBinaryShortMessages(
-                    textBytes,
-                    referenceNum[0]
-                  );
-
-                  if(byteMessagesArray != null) {
-                    for (int i = 0; i < byteMessagesArray.length; i++) {
-                      SubmitSm submit = setupMtMessage(
-                        preferredSmppServerName,
-                        sourceAddress,
-                        destAddress,
-                        byteMessagesArray[i],
-                        dataCoding
-                      );
-                      submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
-                      submitSmResponse = sendMtMessage(session, submit);
-                    }
+                if(destCharset == CharsetUtil.CHARSET_UCS_2) {
+                  if(
+                    ChibiUtil.getBooleanProperty(
+                      preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0"
+                    )
+                  ) {
+                    destCharset = CharsetUtil.CHARSET_UCS_2LE;
                   } else {
+                    destCharset = CharsetUtil.CHARSET_UCS_2;
+                  }
+                }
+
+                textBytes = CharsetUtil.encode(mtMessageText, destCharset);
+
+                final String sourceAddress = job.getSourceAddress();
+                final String destAddress = job.getDestAddress();
+
+                SubmitSmResp submitSmResponse = new SubmitSmResp();
+
+                // http://stackoverflow.com/questions/21098643/smpp-submit-long-message-and-message-split
+                // 160 * 7bits == 140 Bytes (7 bit character encoding)
+                // 140 * 8bits == 140 Bytes (8 bit character encoding)
+                // 70 * 16bits == 140 Bytes (16 bit character encoding)
+
+                // generate new reference number
+                byte[] referenceNum = new byte[1];
+                new Random().nextBytes(referenceNum);
+
+                byte[][] byteMessagesArray = GsmUtil.createConcatenatedBinaryShortMessages(
+                  textBytes,
+                  referenceNum[0]
+                );
+
+                if(byteMessagesArray != null) {
+                  for (int i = 0; i < byteMessagesArray.length; i++) {
                     SubmitSm submit = setupMtMessage(
                       preferredSmppServerName,
                       sourceAddress,
                       destAddress,
-                      textBytes,
+                      byteMessagesArray[i],
                       dataCoding
                     );
+                    submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
                     submitSmResponse = sendMtMessage(session, submit);
                   }
-
-                  logger.info("--------SENT MESSAGE ------------ AND GOT RESPONSE!!!!!----------");
-
-                  final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
-                    mtMessageUpdateStatusWorker,
+                } else {
+                  SubmitSm submit = setupMtMessage(
                     preferredSmppServerName,
-                    mtMessageExternalId,
-                    submitSmResponse.getMessageId(),
-                    submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
+                    sourceAddress,
+                    destAddress,
+                    textBytes,
+                    dataCoding
                   );
-
-                  job.setUnknownField("retry", true);
-                  job.setUnknownField("queue", mtMessageUpdateStatusQueue);
-
-                  logger.info("--------FINISHED SETTING UP JOB----------");
-
-                  final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
-                    jesqueConfig,
-                    true
-                  );
-
-                  logger.info("--------SET UP CLIENT JOB----------");
-
-                  jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
-
-                  logger.info("--------ENQUEUED JOB----------");
-
-                  jesqueMtClient.end();
-
-                  logger.info("--------SHUTDOWN CLIENT----------");
-
-                  logger.info("---------INCREMENTED SENT-----------");
-                  sent = alreadySent.incrementAndGet();
-
-                  logger.info("--------SENT IS NOW: " + sent + " ----------");
+                  submitSmResponse = sendMtMessage(session, submit);
                 }
+
+                final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
+                  mtMessageUpdateStatusWorker,
+                  preferredSmppServerName,
+                  mtMessageExternalId,
+                  submitSmResponse.getMessageId(),
+                  submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
+                );
+
+                job.setUnknownField("retry", true);
+                job.setUnknownField("queue", mtMessageUpdateStatusQueue);
+
+                final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
+                  jesqueConfig,
+                  true
+                );
+
+                logger.info("--------SET UP CLIENT JOB----------");
+
+                jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
+
+                logger.info("--------ENQUEUED JOB----------");
+
+                jesqueMtClient.end();
+
+                logger.info("--------SHUTDOWN CLIENT----------");
+
+                logger.info("---------INCREMENTED SENT-----------");
+                sent = alreadySent.incrementAndGet();
+
+                logger.info("--------SENT IS NOW: " + sent + " ----------");
+              } else {
+                logger.warn("------------NOT CONNECTED!!!---------------");
+                next.scheduleReconnect();
               }
-            } catch (Exception e) {
-              logger.error(e.toString(), e);
-              return;
             }
+          } catch (Exception e) {
+            logger.error(e.toString(), e);
+            return;
           }
-        });
-      }
+        }
+      });
     }
   }
 
