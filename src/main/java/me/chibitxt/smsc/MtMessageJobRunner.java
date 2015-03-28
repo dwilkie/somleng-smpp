@@ -30,6 +30,7 @@ public class MtMessageJobRunner implements Runnable {
   }
 
   private MtMessageJob produce() {
+    log.info("---ABOUT TO PUT JOB IN BLOCKING QUEUE---", this);
     final String[] args = {arg1, arg2, arg3, arg4, arg5};
     return new MtMessageJob(args);
   }

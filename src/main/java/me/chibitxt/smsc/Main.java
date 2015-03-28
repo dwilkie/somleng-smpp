@@ -138,6 +138,7 @@ public class Main {
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
     while(true) {
+      logger.info("-------QUEUE-SIZE------" + mtMessageQueue.size());
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
       final String preferredSmppServerName = job.getPreferredSmppServerName();
@@ -251,22 +252,13 @@ public class Main {
                   job.setUnknownField("retry", true);
                   job.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
-                  logger.info("---ABOUT TO BUILD NEW JESQUE CLIENT-----", this);
-
                   final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
                     jesqueConfig,
                     true
                   );
 
-                  logger.info("---FINISHED TO BUILDING NEW JESQUE CLIENT ABOUT TO ENQUEUE JOB-----", this);
-
                   jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
-
-                  logger.info("---ENQUEUED JOB! ABOUT TO END CLIENT-----", this);
-
                   jesqueMtClient.end();
-
-                  logger.info("---FINISHED ENDING CLIENT! DONE-----------", this);
 
                   sent = alreadySent.incrementAndGet();
                 }
