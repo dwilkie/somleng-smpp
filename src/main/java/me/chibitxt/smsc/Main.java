@@ -271,8 +271,7 @@ public class Main {
 
                 logger.info("--------SENT IS NOW: " + sent + " ----------");
               } else {
-                logger.warn("------------NOT CONNECTED!!!---------------");
-                next.scheduleReconnect();
+                // find out what to do here...
               }
             }
           } catch (Exception e) {
