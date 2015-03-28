@@ -248,6 +248,8 @@ public class Main {
                     submitSmResponse = sendMtMessage(session, submit);
                   }
 
+                  logger.info("--------SENT MESSAGE ------------ AND GOT RESPONSE!!!!!----------");
+
                   final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
                     mtMessageUpdateStatusWorker,
                     preferredSmppServerName,
@@ -259,15 +261,27 @@ public class Main {
                   job.setUnknownField("retry", true);
                   job.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
+                  logger.info("--------FINISHED SETTING UP JOB----------");
+
                   final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
                     jesqueConfig,
                     true
                   );
 
+                  logger.info("--------SET UP CLIENT JOB----------");
+
                   jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
+
+                  logger.info("--------ENQUEUED JOB----------");
+
                   jesqueMtClient.end();
 
+                  logger.info("--------SHUTDOWN CLIENT----------");
+
                   sent = alreadySent.incrementAndGet();
+
+                  logger.info("--------INCREMENTING SENT----------");
+                  logger.info("--------SENT IS NOW: " + sent + " ----------");
                 }
               }
             } catch (Exception e) {
