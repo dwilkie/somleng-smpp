@@ -144,7 +144,7 @@ public class Main {
       final long messagesToSend = 1;
       final AtomicLong alreadySent = new AtomicLong();
       logger.info("---------GOT JOB!-----------");
-      for (int j = 0; j < totalNumOfThreads; j++) {
+      for (int j = 0; j < 1; j++) {
         logger.info("---------IN THREAD LOOP NUM THREADS: " + totalNumOfThreads + " -----------");
         executorService.execute(new Runnable() {
           @Override
@@ -155,6 +155,8 @@ public class Main {
               logger.info("---------SENT: " + sent + "------");
               logger.info("---------MESSAGES TO SEND: " + messagesToSend + "------");
               while (sent <= messagesToSend) {
+                // need to increment sent now so that two jobs don't get executed
+                sent = alreadySent.incrementAndGet();
                 final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
                 final SmppSession session = next.getSession();
 
@@ -277,8 +279,6 @@ public class Main {
                   jesqueMtClient.end();
 
                   logger.info("--------SHUTDOWN CLIENT----------");
-
-                  sent = alreadySent.incrementAndGet();
 
                   logger.info("--------INCREMENTING SENT----------");
                   logger.info("--------SENT IS NOW: " + sent + " ----------");
