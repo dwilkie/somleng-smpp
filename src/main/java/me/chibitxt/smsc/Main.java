@@ -138,22 +138,29 @@ public class Main {
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
     while(true) {
-      logger.info("-------QUEUE-SIZE------" + mtMessageQueue.size());
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
       final String preferredSmppServerName = job.getPreferredSmppServerName();
       final long messagesToSend = 1;
       final AtomicLong alreadySent = new AtomicLong();
+      logger.info("---------GOT JOB!-----------");
       for (int j = 0; j < totalNumOfThreads; j++) {
+        logger.info("---------IN THREAD LOOP NUM THREADS: " + totalNumOfThreads + " -----------");
         executorService.execute(new Runnable() {
           @Override
           public void run() {
             try {
               long sent = alreadySent.incrementAndGet();
+              logger.info("---------CHECK WHETHER WE HAVE SENT MESSAGE?------");
+              logger.info("---------SENT: " + sent + "------");
+              logger.info("---------MESSAGES TO SEND: " + messagesToSend + "------");
               while (sent <= messagesToSend) {
                 final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
                 final SmppSession session = next.getSession();
+
+                logger.info("---------CHECKING SESSION-------");
                 if (session != null && session.isBound()) {
+                  logger.info("---------SESSION IS BOUND!!!!-----------");
 
                   final int mtMessageExternalId = job.getExternalMessageId();
                   final String mtMessageText = job.getMessageBody();
