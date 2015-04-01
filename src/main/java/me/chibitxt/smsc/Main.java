@@ -141,14 +141,12 @@ public class Main {
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
       final String preferredSmppServerName = job.getPreferredSmppServerName();
-      final long messagesToSend = 1;
-      final AtomicLong alreadySent = new AtomicLong();
       executorService.execute(new Runnable() {
         @Override
         public void run() {
           try {
-            long sent = alreadySent.incrementAndGet();
-            while (sent <= messagesToSend) {
+            boolean successfullySent = false;
+            while (!successfullySent) {
               final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
               final SmppSession session = next.getSession();
 
@@ -227,7 +225,7 @@ public class Main {
                       dataCoding
                     );
                     submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
-                    submitSmResponse = sendMtMessage(session, submit);
+                    submitSmResponse = session.submit(submit, 10000);
                   }
                 } else {
                   SubmitSm submit = setupMtMessage(
@@ -237,7 +235,7 @@ public class Main {
                     textBytes,
                     dataCoding
                   );
-                  submitSmResponse = sendMtMessage(session, submit);
+                  submitSmResponse = session.submit(submit, 10000);
                 }
 
                 final net.greghaines.jesque.Job job = new net.greghaines.jesque.Job(
@@ -256,24 +254,13 @@ public class Main {
                   true
                 );
 
-                logger.info("--------SET UP CLIENT JOB----------");
-
                 jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
-
-                logger.info("--------ENQUEUED JOB----------");
-
                 jesqueMtClient.end();
 
-                logger.info("--------SHUTDOWN CLIENT----------");
-
-                logger.info("---------INCREMENTED SENT-----------");
-                sent = alreadySent.incrementAndGet();
-
-                logger.info("--------SENT IS NOW: " + sent + " ----------");
-              } else {
-                // find out what to do here...
+                successfullySent = true;
               }
             }
+            logger.info("--------SUCCESSFULLY SENT MT AND RECORDED RESPONSE----------");
           } catch (Exception e) {
             logger.error(e.toString(), e);
             return;
@@ -316,11 +303,6 @@ public class Main {
     }
 
     return submit;
-  }
-
-  private static final SubmitSmResp sendMtMessage(SmppSession session, SubmitSm submit) throws Exception {
-    final SubmitSmResp submit1 = session.submit(submit, 10000);
-    return submit1;
   }
 
   private static URI getRedisUri() throws URISyntaxException {
