@@ -258,7 +258,8 @@ public class OutboundClient extends Client {
       deliveryStatus
     );
 
-    job.setUnknownField("retry", true);
+    job.setUnknownField("retry", 5);
+    job.setUnknownField("dead", false);
     job.setUnknownField("queue", deliveryReceiptUpdateStatusQueue);
 
     jesqueClient.enqueue(deliveryReceiptUpdateStatusQueue, job);

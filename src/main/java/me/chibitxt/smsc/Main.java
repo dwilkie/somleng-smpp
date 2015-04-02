@@ -246,7 +246,8 @@ public class Main {
                   submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
                 );
 
-                job.setUnknownField("retry", true);
+                job.setUnknownField("retry", 5);
+                job.setUnknownField("dead", false);
                 job.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
                 final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
