@@ -150,10 +150,10 @@ public class Main {
         public void run() {
           try {
             boolean successfullySent = false;
-            while (!successfullySent) {
-              final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
-              final SmppSession session = next.getSession();
+            final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
+            final SmppSession session = next.getSession();
 
+            while (!successfullySent) {
               if (session != null && session.isBound()) {
 
                 final int mtMessageExternalId = job.getExternalMessageId();
