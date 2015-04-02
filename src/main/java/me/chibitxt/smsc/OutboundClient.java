@@ -40,6 +40,7 @@ public class OutboundClient extends Client {
   private Integer enquireLinkPeriod = 1000;
   private Integer enquireLinkTimeout = 10000;
   private boolean shutdown = false;
+  private int numDeliveryReceiptRetries;
 
   private volatile Integer connectionFailedTimes = 0;
 
@@ -96,6 +97,9 @@ public class OutboundClient extends Client {
     // setup configuration for a client session
     //
     sessionHandler = new ClientSmppSessionHandler(this, smppClientMessageService);
+    numDeliveryReceiptRetries = Integer.parseInt(
+      System.getProperty("SMPP_DELIVERY_RECEIPT_UPDATE_STATUS_RETRIES", "5")
+    );
   }
 
   protected synchronized void reconnect(Integer connectionFailedTimes) {
@@ -258,7 +262,7 @@ public class OutboundClient extends Client {
       deliveryStatus
     );
 
-    job.setUnknownField("retry", 5);
+    job.setUnknownField("retry", numDeliveryReceiptRetries);
     job.setUnknownField("dead", false);
     job.setUnknownField("queue", deliveryReceiptUpdateStatusQueue);
 

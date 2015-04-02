@@ -137,6 +137,10 @@ public class Main {
     Thread shutdownHook = new Thread(shutdownClient);
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
+    final int numMtMessageUpdateStatusRetries = Integer.parseInt(
+      System.getProperty("SMPP_MT_MESSAGE_UPDATE_STATUS_RETRIES", "5")
+    );
+
     while(true) {
       // this blocks until there's a job in the queue
       final MtMessageJob job = (MtMessageJob)mtMessageQueue.take();
@@ -246,7 +250,7 @@ public class Main {
                   submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
                 );
 
-                job.setUnknownField("retry", 5);
+                job.setUnknownField("retry", numMtMessageUpdateStatusRetries);
                 job.setUnknownField("dead", false);
                 job.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
