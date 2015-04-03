@@ -6,18 +6,18 @@ GIT
       thor (~> 0.19.1)
 
 GIT
-  remote: git://github.com/dwilkie/capistrano-foreman.git
-  revision: e8b372ae8b8c8ec69b42ab4041bef6328a453ddc
-  specs:
-    capistrano-foreman (1.1.0)
-      capistrano (~> 3.1)
-      capistrano-bundler (~> 1.1)
-
-GIT
   remote: git://github.com/dwilkie/foreman-upstart-su.git
   revision: cba437285eba23d15e70caddb90c44528b02b31f
   specs:
     foreman-upstart-su (0.0.1)
+
+GIT
+  remote: git://github.com/hyperoslo/capistrano-foreman.git
+  revision: 81e11b94e4b953b8a19e5b49df1a0787269d6a23
+  specs:
+    capistrano-foreman (1.1.0)
+      capistrano (~> 3.1)
+      capistrano-bundler (~> 1.1)
 
 GEM
   remote: https://rubygems.org/
