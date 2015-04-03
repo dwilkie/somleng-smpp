@@ -6,14 +6,8 @@ GIT
       thor (~> 0.19.1)
 
 GIT
-  remote: git://github.com/dwilkie/foreman-upstart-su.git
-  revision: cba437285eba23d15e70caddb90c44528b02b31f
-  specs:
-    foreman-upstart-su (0.0.1)
-
-GIT
-  remote: git://github.com/hyperoslo/capistrano-foreman.git
-  revision: 81e11b94e4b953b8a19e5b49df1a0787269d6a23
+  remote: git://github.com/dwilkie/capistrano-foreman.git
+  revision: f05c9435d804506c3b79055c1032174fd01e7435
   specs:
     capistrano-foreman (1.1.0)
       capistrano (~> 3.1)
@@ -69,5 +63,4 @@ DEPENDENCIES
   capistrano-foreman!
   capistrano-rbenv
   foreman!
-  foreman-upstart-su!
   sidekiq
