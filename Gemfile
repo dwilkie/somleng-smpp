@@ -1,13 +1,12 @@
 source 'https://rubygems.org'
-ruby '2.2.0'
+ruby File.read('.ruby-version').strip
 
 group :development do
   gem 'sidekiq'
   gem 'capistrano'
   gem 'capistrano-rbenv'
   gem 'capistrano-bundler'
-#  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
-  gem 'capistrano-foreman', :github => "dwilkie/capistrano-foreman"
+  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
 end
 
 group :deployment, :development do
