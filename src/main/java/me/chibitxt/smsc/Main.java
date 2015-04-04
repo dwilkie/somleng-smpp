@@ -155,6 +155,10 @@ public class Main {
 
             while (!successfullySent) {
               logger.info("--------IN  while (!successfullySent) loop----------");
+              logger.info("--------Session: " + session + "-------");
+              if(session != null) {
+                logger.info("--------Session isBound(): " + session.isBound() + "-------");
+              }
 
               if (session != null && session.isBound()) {
                 logger.info("--------HAVE A SESSION----------");
