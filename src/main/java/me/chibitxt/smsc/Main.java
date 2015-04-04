@@ -264,7 +264,6 @@ public class Main {
               logger.info("--------SUCCESSFULLY SENT MT AND RECORDED RESPONSE----------");
             }
             else {
-              logger.info("--------SESSION NOT BOUND ADDING READDING JOB TO QUEUE----------");
               mtMessageQueue.put(job);
             }
           } catch (Exception e) {
