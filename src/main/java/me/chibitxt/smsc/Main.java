@@ -153,8 +153,6 @@ public class Main {
             final SmppSession session = next.getSession();
 
             if (session != null && session.isBound()) {
-              logger.info("--------HAVE A SESSION----------");
-
               final int mtMessageExternalId = job.getExternalMessageId();
               final String mtMessageText = job.getMessageBody();
               byte[] textBytes;
@@ -261,10 +259,10 @@ public class Main {
               jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, job);
               jesqueMtClient.end();
 
-              logger.info("--------SUCCESSFULLY SENT MT AND RECORDED RESPONSE----------");
+              logger.info("Successfully sent MT and recorded response");
             }
             else {
-              logger.info("--------NO SESSION RE-ENQUEUING JOB----------");
+              logger.info("No session or session unbound. Waiting 5 seconds then re-enqueuing the job");
               Thread.sleep(5000); // Wait 5 seconds
               mtMessageQueue.put(job);
             }
