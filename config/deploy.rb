@@ -41,7 +41,14 @@ set :rbenv_ruby, File.read('.ruby-version').strip
 
 set :foreman_export_path, '/etc/init'
 set :foreman_use_sudo, :rbenv
-set :foreman_options, {:user => :deploy, :env => "#{shared_path}/.env"}
+
+set(
+  :foreman_options,
+  {
+    :user => :deploy, :env => "#{shared_path}/.env",
+    :template => "`RBENV_ROOT=#{fetch(:rbenv_path)} RBENV_VERSION=#{fetch(:rbenv_ruby)} #{fetch(:rbenv_path)}/bin/rbenv exec bundle show foreman-upstart-su`/data/export/upstartsu"
+  }
+)
 
 namespace :deploy do
   after :publishing, :write_path_to_env do
