@@ -264,6 +264,8 @@ public class Main {
               logger.info("--------SUCCESSFULLY SENT MT AND RECORDED RESPONSE----------");
             }
             else {
+              logger.info("--------NO SESSION RE-ENQUEUING JOB----------");
+              Thread.sleep(5000); // Wait 5 seconds
               mtMessageQueue.put(job);
             }
           } catch (Exception e) {
