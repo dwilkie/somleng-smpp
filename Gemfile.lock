@@ -6,10 +6,10 @@ GIT
       thor (~> 0.19.1)
 
 GIT
-  remote: git://github.com/dwilkie/capistrano-foreman.git
-  revision: f05c9435d804506c3b79055c1032174fd01e7435
+  remote: git://github.com/hyperoslo/capistrano-foreman.git
+  revision: 2cf9273fa0bc0b44358d20072cbae5b97d6a80b3
   specs:
-    capistrano-foreman (1.1.0)
+    capistrano-foreman (1.2.0)
       capistrano (~> 3.1)
       capistrano-bundler (~> 1.1)
 

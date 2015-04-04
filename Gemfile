@@ -6,8 +6,7 @@ group :development do
   gem 'capistrano'
   gem 'capistrano-rbenv'
   gem 'capistrano-bundler'
-  #gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
-  gem 'capistrano-foreman', :github => "dwilkie/capistrano-foreman"
+  gem 'capistrano-foreman', :github => "hyperoslo/capistrano-foreman"
 end
 
 group :deployment, :development do
