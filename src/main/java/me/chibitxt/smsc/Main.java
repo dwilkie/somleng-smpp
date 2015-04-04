@@ -154,7 +154,10 @@ public class Main {
             final SmppSession session = next.getSession();
 
             while (!successfullySent) {
+              logger.info("--------IN  while (!successfullySent) loop----------");
+
               if (session != null && session.isBound()) {
+                logger.info("--------HAVE A SESSION----------");
 
                 final int mtMessageExternalId = job.getExternalMessageId();
                 final String mtMessageText = job.getMessageBody();
