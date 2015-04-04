@@ -11,5 +11,4 @@ end
 
 group :deployment, :development do
   gem 'foreman', :github => "ddollar/foreman" # needed for deployment
-  gem 'foreman-upstart-su', :github => "dwilkie/foreman-upstart-su", :require => false
 end
