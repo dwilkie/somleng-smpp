@@ -267,7 +267,11 @@ public class Main {
               mtMessageQueue.put(job);
             }
           } catch (Exception e) {
-            logger.error(e.toString(), e);
+            try {
+              logger.warn("Exception raised while trying to send MT. Waiting 5 seconds then re-enqueuing the job. " + e);
+              Thread.sleep(5000); // Wait 5 seconds
+              mtMessageQueue.put(job);
+            } catch (InterruptedException ex) { logger.error( "Failed to re-add job to blocking queue", ex ); }
             return;
           }
         }
