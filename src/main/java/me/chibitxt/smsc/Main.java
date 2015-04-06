@@ -158,6 +158,8 @@ public class Main {
             try {
               // this blocks until there's a job in the queue
               mtMessageJob = (MtMessageJob)mtMessageQueue.take();
+              logger.info("Taking job from blocking queue");
+
               final String preferredSmppServerName = mtMessageJob.getPreferredSmppServerName();
 
               final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
@@ -288,6 +290,8 @@ public class Main {
                 } catch (InterruptedException ex) {
                   logger.error("Failed to re-add job to blocking queue", ex);
                 }
+              } else {
+                logger.info("Exception raised but no job to re-enqueue", e);
               }
               return;
             }

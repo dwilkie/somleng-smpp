@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.BlockingQueue;
 
 public class MtMessageJobRunner implements Runnable {
-  private static final Logger log = LoggerFactory.getLogger(MtMessageJobRunner.class);
+  private static final Logger logger = LoggerFactory.getLogger(MtMessageJobRunner.class);
   private final String arg1;
   private final String arg2;
   private final String arg3;
@@ -25,8 +25,13 @@ public class MtMessageJobRunner implements Runnable {
   public void setQueue(final BlockingQueue q) { queue = q; }
 
   public void run() {
-    try { queue.put(produce()); }
-    catch (InterruptedException ex) { log.error( "failed!", ex ); }
+    try {
+      queue.put(produce());
+      logger.info("Added job to blocking queue");
+    }
+    catch(InterruptedException ex) {
+      logger.error("failed!", ex );
+    }
   }
 
   private MtMessageJob produce() {
