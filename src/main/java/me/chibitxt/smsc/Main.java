@@ -83,9 +83,14 @@ public class Main {
       "SMPP_MO_MESSAGE_RECEIVED_QUEUE"
     );
 
-    // Number of threads
+    // Number of MT Threads
     final int numMtThreads = Integer.parseInt(
       System.getProperty("SMPP_NUM_MT_THREADS", "10")
+    );
+
+    // Number of Worker Threads
+    final int numJesqueWorkerThreads = Integer.parseInt(
+      System.getProperty("SMPP_NUM_JESQUE_WORKER_THREADS", "10")
     );
 
     // SMSCs to connect to
@@ -125,15 +130,16 @@ public class Main {
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
-    final net.greghaines.jesque.worker.Worker jesqueMtWorker = startJesqueWorker(
+    final java.util.ArrayList<net.greghaines.jesque.worker.Worker> jesqueMtWorkerList = startJesqueWorkers(
       jesqueConfig,
-      mtMessageQueue
+      mtMessageQueue,
+      numJesqueWorkerThreads
     );
 
     ShutdownClient shutdownClient = new ShutdownClient(
       executorService,
       smppServerBalancedLists,
-      jesqueMtWorker
+      jesqueMtWorkerList
     );
 
     Thread shutdownHook = new Thread(shutdownClient);
@@ -378,35 +384,43 @@ public class Main {
     return configBuilder.build();
   }
 
-  private static final net.greghaines.jesque.worker.Worker startJesqueWorker(final net.greghaines.jesque.Config jesqueConfig, final BlockingQueue blockingQueue) {
+  private static final java.util.ArrayList<net.greghaines.jesque.worker.Worker> startJesqueWorkers(final net.greghaines.jesque.Config jesqueConfig, final BlockingQueue blockingQueue, final int numJesqueWorkerThreads) {
     final String queueName = System.getProperty("SMPP_MT_MESSAGE_QUEUE", "default");
-    final net.greghaines.jesque.worker.Worker worker = new net.greghaines.jesque.worker.WorkerImpl(
-      jesqueConfig,
-      Arrays.asList(queueName),
-      new net.greghaines.jesque.worker.MapBasedJobFactory(
-        net.greghaines.jesque.utils.JesqueUtils.map(
-          net.greghaines.jesque.utils.JesqueUtils.entry(
-            MtMessageJobRunner.class.getSimpleName(),
-            MtMessageJobRunner.class
+
+    final java.util.ArrayList<net.greghaines.jesque.worker.Worker> workerList = new java.util.ArrayList<net.greghaines.jesque.worker.Worker>(numJesqueWorkerThreads);
+
+    for (int jesqueWorkerThreadCounter = 0; jesqueWorkerThreadCounter < numJesqueWorkerThreads; jesqueWorkerThreadCounter++) {
+
+      final net.greghaines.jesque.worker.Worker worker = new net.greghaines.jesque.worker.WorkerImpl(
+        jesqueConfig,
+        Arrays.asList(queueName),
+        new net.greghaines.jesque.worker.MapBasedJobFactory(
+          net.greghaines.jesque.utils.JesqueUtils.map(
+            net.greghaines.jesque.utils.JesqueUtils.entry(
+              MtMessageJobRunner.class.getSimpleName(),
+              MtMessageJobRunner.class
+            )
           )
         )
-      )
-    );
+      );
 
-    worker.getWorkerEventEmitter().addListener(
-      new net.greghaines.jesque.worker.WorkerListener() {
-        public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
-          if (runner instanceof MtMessageJobRunner) {
-            ((MtMessageJobRunner) runner).setQueue(blockingQueue);
+      worker.getWorkerEventEmitter().addListener(
+        new net.greghaines.jesque.worker.WorkerListener() {
+          public void onEvent(net.greghaines.jesque.worker.WorkerEvent event, net.greghaines.jesque.worker.Worker worker, String queue, net.greghaines.jesque.Job job, Object runner, Object result, Throwable t) {
+            if (runner instanceof MtMessageJobRunner) {
+              ((MtMessageJobRunner) runner).setQueue(blockingQueue);
+            }
           }
-        }
-      },
-      net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE
-    );
+        },
+        net.greghaines.jesque.worker.WorkerEvent.JOB_EXECUTE
+      );
 
-    final Thread workerThread = new Thread(worker);
-    workerThread.start();
-    return worker;
+      final Thread workerThread = new Thread(worker);
+      workerThread.start();
+      workerList.add(worker);
+    }
+
+    return workerList;
   }
 
   private static void loadSystemProperties(String configurationFile) throws IOException {
