@@ -149,152 +149,145 @@ public class Main {
       System.getProperty("SMPP_MT_MESSAGE_UPDATE_STATUS_RETRIES", "5")
     );
 
-    for (int j = 0; j < numMtThreads; j++) {
+    while(true) {
+      // this blocks until there's a job in the queue
+      final MtMessageJob mtMessageJob = (MtMessageJob)mtMessageQueue.take();
+      logger.info("Taking job from blocking queue");
+
+      final String preferredSmppServerName = mtMessageJob.getPreferredSmppServerName();
+
       executorService.execute(new Runnable() {
         @Override
         public void run() {
-          while(true) {
-            MtMessageJob mtMessageJob = null;
-            try {
-              // this blocks until there's a job in the queue
-              mtMessageJob = (MtMessageJob)mtMessageQueue.take();
-              logger.info("Taking job from blocking queue");
+          try {
+            final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
+            final SmppSession session = next.getSession();
 
-              final String preferredSmppServerName = mtMessageJob.getPreferredSmppServerName();
+            if (session != null && session.isBound()) {
+              final int mtMessageExternalId = mtMessageJob.getExternalMessageId();
+              final String mtMessageText = mtMessageJob.getMessageBody();
+              byte[] textBytes;
 
-              final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
-              final SmppSession session = next.getSession();
+              // default data coding to UCS2
+              byte dataCoding = SmppConstants.DATA_CODING_UCS2;
 
-              if (session != null && session.isBound()) {
-                final int mtMessageExternalId = mtMessageJob.getExternalMessageId();
-                final String mtMessageText = mtMessageJob.getMessageBody();
-                byte[] textBytes;
+              Charset destCharset;
 
-                // default data coding to UCS2
-                byte dataCoding = SmppConstants.DATA_CODING_UCS2;
-
-                Charset destCharset;
-
-                if (GSMCharset.canRepresent(mtMessageText)) {
-                  if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
-                    destCharset = CharsetUtil.CHARSET_GSM;
-                    dataCoding = SmppConstants.DATA_CODING_GSM;
-                  }
-                  else {
-                    java.nio.charset.CharsetEncoder asciiEncoder;
-                    asciiEncoder = java.nio.charset.Charset.forName("US-ASCII").newEncoder();
-
-                    if(asciiEncoder.canEncode(mtMessageText)) {
-                      // encode as ASCII and use set data-coding to Default SMSC Alphabet
-                      dataCoding = SmppConstants.DATA_CODING_DEFAULT;
-                      destCharset = CharsetUtil.CHARSET_UTF_8; // same as ascii
-                    } else {
-                      destCharset = CharsetUtil.CHARSET_UCS_2;
-                    }
-                  }
-                } else {
-                  destCharset = CharsetUtil.CHARSET_UCS_2;
+              if (GSMCharset.canRepresent(mtMessageText)) {
+                if(ChibiUtil.getBooleanProperty(preferredSmppServerName + "_SMPP_SUPPORTS_GSM", "1")) {
+                  destCharset = CharsetUtil.CHARSET_GSM;
+                  dataCoding = SmppConstants.DATA_CODING_GSM;
                 }
+                else {
+                  java.nio.charset.CharsetEncoder asciiEncoder;
+                  asciiEncoder = java.nio.charset.Charset.forName("US-ASCII").newEncoder();
 
-                if(destCharset == CharsetUtil.CHARSET_UCS_2) {
-                  if(
-                    ChibiUtil.getBooleanProperty(
-                      preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0"
-                    )
-                  ) {
-                    destCharset = CharsetUtil.CHARSET_UCS_2LE;
+                  if(asciiEncoder.canEncode(mtMessageText)) {
+                    // encode as ASCII and use set data-coding to Default SMSC Alphabet
+                    dataCoding = SmppConstants.DATA_CODING_DEFAULT;
+                    destCharset = CharsetUtil.CHARSET_UTF_8; // same as ascii
                   } else {
                     destCharset = CharsetUtil.CHARSET_UCS_2;
                   }
                 }
+              } else {
+                destCharset = CharsetUtil.CHARSET_UCS_2;
+              }
 
-                textBytes = CharsetUtil.encode(mtMessageText, destCharset);
-
-                final String sourceAddress = mtMessageJob.getSourceAddress();
-                final String destAddress = mtMessageJob.getDestAddress();
-
-                SubmitSmResp submitSmResponse = new SubmitSmResp();
-
-                // http://stackoverflow.com/questions/21098643/smpp-submit-long-message-and-message-split
-                // 160 * 7bits == 140 Bytes (7 bit character encoding)
-                // 140 * 8bits == 140 Bytes (8 bit character encoding)
-                // 70 * 16bits == 140 Bytes (16 bit character encoding)
-
-                // generate new reference number
-                byte[] referenceNum = new byte[1];
-                new Random().nextBytes(referenceNum);
-
-                byte[][] byteMessagesArray = GsmUtil.createConcatenatedBinaryShortMessages(
-                  textBytes,
-                  referenceNum[0]
-                );
-
-                if(byteMessagesArray != null) {
-                  for (int i = 0; i < byteMessagesArray.length; i++) {
-                    SubmitSm submit = setupMtMessage(
-                      preferredSmppServerName,
-                      sourceAddress,
-                      destAddress,
-                      byteMessagesArray[i],
-                      dataCoding
-                    );
-                    submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
-                    submitSmResponse = session.submit(submit, 10000);
-                  }
+              if(destCharset == CharsetUtil.CHARSET_UCS_2) {
+                if(
+                  ChibiUtil.getBooleanProperty(
+                    preferredSmppServerName + "_SMPP_MT_UCS2_LITTLE_ENDIANNESS", "0"
+                  )
+                ) {
+                  destCharset = CharsetUtil.CHARSET_UCS_2LE;
                 } else {
+                  destCharset = CharsetUtil.CHARSET_UCS_2;
+                }
+              }
+
+              textBytes = CharsetUtil.encode(mtMessageText, destCharset);
+
+              final String sourceAddress = mtMessageJob.getSourceAddress();
+              final String destAddress = mtMessageJob.getDestAddress();
+
+              SubmitSmResp submitSmResponse = new SubmitSmResp();
+
+              // http://stackoverflow.com/questions/21098643/smpp-submit-long-message-and-message-split
+              // 160 * 7bits == 140 Bytes (7 bit character encoding)
+              // 140 * 8bits == 140 Bytes (8 bit character encoding)
+              // 70 * 16bits == 140 Bytes (16 bit character encoding)
+
+              // generate new reference number
+              byte[] referenceNum = new byte[1];
+              new Random().nextBytes(referenceNum);
+
+              byte[][] byteMessagesArray = GsmUtil.createConcatenatedBinaryShortMessages(
+                textBytes,
+                referenceNum[0]
+              );
+
+              if(byteMessagesArray != null) {
+                for (int i = 0; i < byteMessagesArray.length; i++) {
                   SubmitSm submit = setupMtMessage(
                     preferredSmppServerName,
                     sourceAddress,
                     destAddress,
-                    textBytes,
+                    byteMessagesArray[i],
                     dataCoding
                   );
+                  submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
                   submitSmResponse = session.submit(submit, 10000);
                 }
-
-                final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
-                  mtMessageUpdateStatusWorker,
-                  preferredSmppServerName,
-                  mtMessageExternalId,
-                  submitSmResponse.getMessageId(),
-                  submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
-                );
-
-                mtMessageUpdateStatusJob.setUnknownField("retry", numMtMessageUpdateStatusRetries);
-                mtMessageUpdateStatusJob.setUnknownField("dead", false);
-                mtMessageUpdateStatusJob.setUnknownField("queue", mtMessageUpdateStatusQueue);
-
-                final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
-                  jesqueConfig,
-                  true
-                );
-
-                jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, mtMessageUpdateStatusJob);
-                jesqueMtClient.end();
-
-                logger.info("Successfully sent MT and recorded response");
-              }
-              else {
-                logger.info("No session or session unbound. Waiting 5 seconds then re-enqueuing the job");
-                Thread.sleep(5000); // Wait 5 seconds
-                mtMessageQueue.put(mtMessageJob);
-              }
-            } catch (Exception e) {
-              if(mtMessageJob != null) {
-                try {
-                  java.io.StringWriter sw = new java.io.StringWriter();
-                  e.printStackTrace(new java.io.PrintWriter(sw));
-                  logger.warn("Exception raised while trying to send MT. Waiting 5 seconds then re-enqueuing the job. " + e + " " + sw.toString());
-                  Thread.sleep(5000); // Wait 5 seconds
-                  mtMessageQueue.put(mtMessageJob);
-                } catch (InterruptedException ex) {
-                  logger.error("Failed to re-add job to blocking queue", ex);
-                }
               } else {
-                logger.info("Exception raised but no job to re-enqueue", e);
+                SubmitSm submit = setupMtMessage(
+                  preferredSmppServerName,
+                  sourceAddress,
+                  destAddress,
+                  textBytes,
+                  dataCoding
+                );
+                submitSmResponse = session.submit(submit, 10000);
               }
-              return;
+
+              final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
+                mtMessageUpdateStatusWorker,
+                preferredSmppServerName,
+                mtMessageExternalId,
+                submitSmResponse.getMessageId(),
+                submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
+              );
+
+              mtMessageUpdateStatusJob.setUnknownField("retry", numMtMessageUpdateStatusRetries);
+              mtMessageUpdateStatusJob.setUnknownField("dead", false);
+              mtMessageUpdateStatusJob.setUnknownField("queue", mtMessageUpdateStatusQueue);
+
+              final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
+                jesqueConfig,
+                true
+              );
+
+              jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, mtMessageUpdateStatusJob);
+              jesqueMtClient.end();
+
+              logger.info("Successfully sent MT and recorded response");
             }
+            else {
+              logger.info("No session or session unbound. Waiting 5 seconds then re-enqueuing the job");
+              Thread.sleep(5000); // Wait 5 seconds
+              mtMessageQueue.put(mtMessageJob);
+            }
+          } catch (Exception e) {
+            try {
+              java.io.StringWriter sw = new java.io.StringWriter();
+              e.printStackTrace(new java.io.PrintWriter(sw));
+              logger.warn("Exception raised while trying to send MT. Waiting 5 seconds then re-enqueuing the job. " + e + " " + sw.toString());
+              Thread.sleep(5000); // Wait 5 seconds
+              mtMessageQueue.put(mtMessageJob);
+            } catch (InterruptedException ex) {
+              logger.error("Failed to re-add job to blocking queue", ex);
+            }
+            return;
           }
         }
       });

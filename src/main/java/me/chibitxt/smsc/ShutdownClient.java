@@ -22,7 +22,16 @@ public class ShutdownClient implements Runnable {
       jedisWorker.end(true);
     }
 
-    executorService.shutdownNow();
+    executorService.shutdown();
+
+    try {
+      if (!executorService.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+        executorService.shutdownNow(); // Cancel currently executing tasks
+      }
+    } catch (InterruptedException ie) {
+      executorService.shutdownNow();
+    }
+
     ReconnectionDaemon.getInstance().shutdown();
 
     Iterator it = balancedLists.entrySet().iterator();
