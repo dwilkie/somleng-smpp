@@ -83,6 +83,11 @@ public class Main {
       "SMPP_MO_MESSAGE_RECEIVED_QUEUE"
     );
 
+    // Number of threads
+    final int numMtThreads = Integer.parseInt(
+      System.getProperty("SMPP_NUM_MT_THREADS", "10")
+    );
+
     // SMSCs to connect to
     final String smppServersString = System.getProperty("SMPP_SERVERS", "default");
 
@@ -93,19 +98,17 @@ public class Main {
 
     final net.greghaines.jesque.Config jesqueConfig = setupJesque();
 
-    int totalNumOfThreads = 0;
-
     for (int smppServerCounter = 0; smppServerCounter < smppServerNames.length; smppServerCounter++) {
       String smppServerKey = smppServerNames[smppServerCounter].toUpperCase();
-      int numOfThreads = Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_MT_THREAD_SIZE", "1"));
+      int numOfConnections = Integer.parseInt(System.getProperty(smppServerKey + "_SMPP_NUM_CONNECTIONS", "1"));
 
       final LoadBalancedList<OutboundClient> balancedList = LoadBalancedLists.synchronizedList(new RoundRobinLoadBalancedList<OutboundClient>());
 
-      for (int threadCounter = 0; threadCounter < numOfThreads; threadCounter++) {
+      for (int connectionCounter = 0; connectionCounter < numOfConnections; connectionCounter++) {
         balancedList.set(
           createClient(
             smppClientMessageService,
-            threadCounter,
+            connectionCounter,
             smppServerKey,
             jesqueConfig,
             deliveryReceiptUpdateStatusWorker,
@@ -114,12 +117,11 @@ public class Main {
             moMessageReceivedQueue
           ),
         1);
-        totalNumOfThreads++;
       }
       smppServerBalancedLists.put(smppServerKey, balancedList);
     }
 
-    final ExecutorService executorService = Executors.newFixedThreadPool(totalNumOfThreads);
+    final ExecutorService executorService = Executors.newFixedThreadPool(numMtThreads);
 
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
@@ -141,7 +143,7 @@ public class Main {
       System.getProperty("SMPP_MT_MESSAGE_UPDATE_STATUS_RETRIES", "5")
     );
 
-    for (int j = 0; j < totalNumOfThreads; j++) {
+    for (int j = 0; j < numMtThreads; j++) {
       executorService.execute(new Runnable() {
         @Override
         public void run() {
