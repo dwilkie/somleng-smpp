@@ -1,17 +1,14 @@
 package me.chibitxt.smsc;
 
-import java.util.concurrent.ExecutorService;
 import java.util.Map;
 import java.util.Iterator;
 import com.cloudhopper.commons.util.*;
 
 public class ShutdownClient implements Runnable {
-  private ExecutorService executorService;
   private Map<String,LoadBalancedList<OutboundClient>> balancedLists;
   private java.util.ArrayList<net.greghaines.jesque.worker.Worker> jedisWorkerList;
 
-  public ShutdownClient(ExecutorService executorService, Map balancedLists, java.util.ArrayList<net.greghaines.jesque.worker.Worker> jedisWorkerList) {
-    this.executorService = executorService;
+  public ShutdownClient(Map balancedLists, java.util.ArrayList<net.greghaines.jesque.worker.Worker> jedisWorkerList) {
     this.balancedLists = balancedLists;
     this.jedisWorkerList = jedisWorkerList;
   }
@@ -20,16 +17,6 @@ public class ShutdownClient implements Runnable {
     for (int i = 0; i < jedisWorkerList.size(); i++) {
       final net.greghaines.jesque.worker.Worker jedisWorker = (net.greghaines.jesque.worker.Worker)jedisWorkerList.get(i);
       jedisWorker.end(true);
-    }
-
-    executorService.shutdown();
-
-    try {
-      if (!executorService.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
-        executorService.shutdownNow(); // Cancel currently executing tasks
-      }
-    } catch (InterruptedException ie) {
-      executorService.shutdownNow();
     }
 
     ReconnectionDaemon.getInstance().shutdown();

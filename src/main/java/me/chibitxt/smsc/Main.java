@@ -13,9 +13,6 @@ import com.cloudhopper.smpp.pdu.SubmitSmResp;
 import com.cloudhopper.smpp.type.*;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.Arrays;
@@ -83,11 +80,6 @@ public class Main {
       "SMPP_MO_MESSAGE_RECEIVED_QUEUE"
     );
 
-    // Number of MT Threads
-    final int numMtThreads = Integer.parseInt(
-      System.getProperty("SMPP_NUM_MT_THREADS", "10")
-    );
-
     // Number of Worker Threads
     final int numJesqueWorkerThreads = Integer.parseInt(
       System.getProperty("SMPP_NUM_JESQUE_WORKER_THREADS", "10")
@@ -126,8 +118,6 @@ public class Main {
       smppServerBalancedLists.put(smppServerKey, balancedList);
     }
 
-    final ExecutorService executorService = Executors.newFixedThreadPool(numMtThreads);
-
     final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
 
     final java.util.ArrayList<net.greghaines.jesque.worker.Worker> jesqueMtWorkerList = startJesqueWorkers(
@@ -137,7 +127,6 @@ public class Main {
     );
 
     ShutdownClient shutdownClient = new ShutdownClient(
-      executorService,
       smppServerBalancedLists,
       jesqueMtWorkerList
     );
@@ -156,7 +145,7 @@ public class Main {
 
       final String preferredSmppServerName = mtMessageJob.getPreferredSmppServerName();
 
-      executorService.execute(new Runnable() {
+      new Thread(new Runnable() {
         @Override
         public void run() {
           try {
@@ -290,7 +279,7 @@ public class Main {
             return;
           }
         }
-      });
+      }).start();
     }
   }
 
