@@ -276,6 +276,11 @@ public class Main {
               e.printStackTrace(new java.io.PrintWriter(sw));
               logger.warn("Exception raised while trying to send MT. Waiting 5 seconds then re-enqueuing the job. " + e + " " + sw.toString());
               Thread.sleep(5000); // Wait 5 seconds
+
+              String fallbackChannel = System.getProperty(preferredSmppServerName + "_SMPP_FALLBACK_CHANNEL");
+              if(fallbackChannel != null) {
+                mtMessageJob.setPreferredSmppServerName(fallbackChannel);
+              }
               mtMessageQueue.put(mtMessageJob);
             } catch (InterruptedException ex) {
               logger.error("Failed to re-add job to blocking queue", ex);

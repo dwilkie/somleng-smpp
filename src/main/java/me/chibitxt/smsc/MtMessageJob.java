@@ -2,7 +2,7 @@ package me.chibitxt.smsc;
 
 public class MtMessageJob {
   private final String externalMessageId;
-  private final String preferredSmppServerName;
+  private String preferredSmppServerName;
   private final String sourceAddress;
   private final String destAddress;
   private final String messageBody;
@@ -33,5 +33,9 @@ public class MtMessageJob {
 
   public String getMessageBody() {
     return messageBody;
+  }
+
+  public void setPreferredSmppServerName(String preferredSmppServerName) {
+    this.preferredSmppServerName = preferredSmppServerName;
   }
 }
