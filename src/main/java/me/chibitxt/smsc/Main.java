@@ -216,6 +216,10 @@ public class Main {
                 referenceNum[0]
               );
 
+              int submitSmTimeout = Integer.parseInt(
+                System.getProperty(preferredSmppServerName + "_SMPP_SUBMIT_SM_TIMEOUT", "10000")
+              );
+
               if(byteMessagesArray != null) {
                 for (int i = 0; i < byteMessagesArray.length; i++) {
                   SubmitSm submit = setupMtMessage(
@@ -226,7 +230,7 @@ public class Main {
                     dataCoding
                   );
                   submit.setEsmClass(SmppConstants.ESM_CLASS_UDHI_MASK);
-                  submitSmResponse = session.submit(submit, 10000);
+                  submitSmResponse = session.submit(submit, submitSmTimeout);
                 }
               } else {
                 SubmitSm submit = setupMtMessage(
@@ -236,7 +240,7 @@ public class Main {
                   textBytes,
                   dataCoding
                 );
-                submitSmResponse = session.submit(submit, 10000);
+                submitSmResponse = session.submit(submit, submitSmTimeout);
               }
 
               final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
