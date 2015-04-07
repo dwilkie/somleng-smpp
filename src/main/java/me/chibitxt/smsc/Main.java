@@ -149,8 +149,16 @@ public class Main {
         @Override
         public void run() {
           try {
-            final OutboundClient next = smppServerBalancedLists.get(preferredSmppServerName).getNext();
+            logger.info("Preferred SMPP Server Name is: " + preferredSmppServerName);
+
+            LoadBalancedList<OutboundClient> clientList = smppServerBalancedLists.get(preferredSmppServerName);
+
+            logger.info("Got client list for: " + preferredSmppServerName);
+
+            final OutboundClient next = clientList.getNext();
             final SmppSession session = next.getSession();
+
+            logger.info("Got client and session for: " + preferredSmppServerName);
 
             if (session != null && session.isBound()) {
               final int mtMessageExternalId = mtMessageJob.getExternalMessageId();
