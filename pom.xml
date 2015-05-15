@@ -14,7 +14,7 @@
     <dependency>
       <groupId>com.cloudhopper</groupId>
       <artifactId>ch-smpp</artifactId>
-      <version>5.0.7</version>
+      <version>5.0.8</version>
     </dependency>
     <dependency>
       <groupId>com.cloudhopper</groupId>
@@ -24,7 +24,7 @@
     <dependency>
       <groupId>com.cloudhopper</groupId>
       <artifactId>ch-commons-charset</artifactId>
-      <version>3.0.3-SNAPSHOT</version>
+      <version>[3.0.0,)</version>
     </dependency>
     <dependency>
       <groupId>commons-cli</groupId>
