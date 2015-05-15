@@ -126,9 +126,15 @@ public class Main {
       numJesqueWorkerThreads
     );
 
+    final net.greghaines.jesque.client.ClientPoolImpl jesqueMtClientPool = new  net.greghaines.jesque.client.ClientPoolImpl(
+      jesqueConfig,
+      net.greghaines.jesque.utils.PoolUtils.createJedisPool(jesqueConfig)
+    );
+
     ShutdownClient shutdownClient = new ShutdownClient(
       smppServerBalancedLists,
-      jesqueMtWorkerList
+      jesqueMtWorkerList,
+      jesqueMtClientPool
     );
 
     Thread shutdownHook = new Thread(shutdownClient);
@@ -263,13 +269,7 @@ public class Main {
               mtMessageUpdateStatusJob.setUnknownField("dead", false);
               mtMessageUpdateStatusJob.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
-              final net.greghaines.jesque.client.Client jesqueMtClient = new net.greghaines.jesque.client.ClientImpl(
-                jesqueConfig,
-                true
-              );
-
-              jesqueMtClient.enqueue(mtMessageUpdateStatusQueue, mtMessageUpdateStatusJob);
-              jesqueMtClient.end();
+              jesqueMtClientPool.enqueue(mtMessageUpdateStatusQueue, mtMessageUpdateStatusJob);
 
               logger.info("Successfully sent MT and recorded response");
             }

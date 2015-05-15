@@ -6,18 +6,22 @@ import com.cloudhopper.commons.util.*;
 
 public class ShutdownClient implements Runnable {
   private Map<String,LoadBalancedList<OutboundClient>> balancedLists;
-  private java.util.ArrayList<net.greghaines.jesque.worker.Worker> jedisWorkerList;
+  private java.util.ArrayList<net.greghaines.jesque.worker.Worker> jesqueWorkerList;
+  private net.greghaines.jesque.client.ClientPoolImpl jesqueClientPool;
 
-  public ShutdownClient(Map balancedLists, java.util.ArrayList<net.greghaines.jesque.worker.Worker> jedisWorkerList) {
+  public ShutdownClient(Map balancedLists, java.util.ArrayList<net.greghaines.jesque.worker.Worker> jesqueWorkerList, net.greghaines.jesque.client.ClientPoolImpl jesqueClientPool) {
     this.balancedLists = balancedLists;
-    this.jedisWorkerList = jedisWorkerList;
+    this.jesqueWorkerList = jesqueWorkerList;
+    this.jesqueClientPool = jesqueClientPool;
   }
 
   public void run() {
-    for (int i = 0; i < jedisWorkerList.size(); i++) {
-      final net.greghaines.jesque.worker.Worker jedisWorker = (net.greghaines.jesque.worker.Worker)jedisWorkerList.get(i);
-      jedisWorker.end(true);
+    for (int i = 0; i < jesqueWorkerList.size(); i++) {
+      final net.greghaines.jesque.worker.Worker jesqueWorker = (net.greghaines.jesque.worker.Worker)jesqueWorkerList.get(i);
+      jesqueWorker.end(true);
     }
+
+    jesqueClientPool.end();
 
     ReconnectionDaemon.getInstance().shutdown();
 
