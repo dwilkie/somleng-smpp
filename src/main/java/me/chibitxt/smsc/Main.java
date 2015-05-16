@@ -14,7 +14,7 @@ import com.cloudhopper.smpp.type.*;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
@@ -118,7 +118,7 @@ public class Main {
       smppServerBalancedLists.put(smppServerKey, balancedList);
     }
 
-    final BlockingQueue mtMessageQueue = new LinkedBlockingQueue<String>();
+    final BlockingQueue mtMessageQueue = new PriorityBlockingQueue<String>();
 
     final java.util.ArrayList<net.greghaines.jesque.worker.Worker> jesqueMtWorkerList = startJesqueWorkers(
       jesqueConfig,
@@ -147,7 +147,7 @@ public class Main {
     while(true) {
       // this blocks until there's a job in the queue
       final MtMessageJob mtMessageJob = (MtMessageJob)mtMessageQueue.take();
-      logger.info("Taking job from blocking queue");
+      logger.info("Taking job from blocking queue with Priority: " + mtMessageJob.getPriority());
 
       final String preferredSmppServerName = mtMessageJob.getPreferredSmppServerName();
 

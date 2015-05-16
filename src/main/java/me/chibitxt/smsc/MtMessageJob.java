@@ -1,18 +1,24 @@
 package me.chibitxt.smsc;
 
-public class MtMessageJob {
+public class MtMessageJob implements Comparable<MtMessageJob> {
+  private final int priority;
   private final String externalMessageId;
   private String preferredSmppServerName;
   private final String sourceAddress;
   private final String destAddress;
   private final String messageBody;
 
-  public MtMessageJob(final String [] args) {
-    this.externalMessageId = args[0];
-    this.preferredSmppServerName = args[1];
-    this.sourceAddress = args[2];
-    this.destAddress = args[3];
-    this.messageBody = args[4];
+  public MtMessageJob(final String priority, final String externalMessageId, String preferredSmppServerName, final String sourceAddress, final String destAddress, final String messageBody) {
+    this.priority = Integer.parseInt(priority);
+    this.externalMessageId = externalMessageId;
+    this.preferredSmppServerName = preferredSmppServerName;
+    this.sourceAddress = sourceAddress;
+    this.destAddress = destAddress;
+    this.messageBody = messageBody;
+  }
+
+  public int getPriority() {
+    return priority;
   }
 
   public int getExternalMessageId() {
@@ -37,5 +43,9 @@ public class MtMessageJob {
 
   public void setPreferredSmppServerName(String preferredSmppServerName) {
     this.preferredSmppServerName = preferredSmppServerName;
+  }
+
+  public int compareTo(MtMessageJob compareMtMessageJob) {
+    return compareMtMessageJob.getPriority() - this.priority;
   }
 }

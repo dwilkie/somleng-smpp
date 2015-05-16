@@ -7,19 +7,25 @@ import java.util.concurrent.BlockingQueue;
 
 public class MtMessageJobRunner implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(MtMessageJobRunner.class);
-  private final String arg1;
-  private final String arg2;
-  private final String arg3;
-  private final String arg4;
-  private final String arg5;
+  private final String priority;
+  private final String externalMessageId;
+  private final String preferredSmppServerName;
+  private final String sourceAddress;
+  private final String destAddress;
+  private final String messageBody;
   private BlockingQueue queue;
 
-  public MtMessageJobRunner(final String arg1, final String arg2, final String arg3, final String arg4, final String arg5) {
-    this.arg1 = arg1;
-    this.arg2 = arg2;
-    this.arg3 = arg3;
-    this.arg4 = arg4;
-    this.arg5 = arg5;
+  public MtMessageJobRunner(final String externalMessageId, final String preferredSmppServerName, final String sourceAddress, final String destAddress, final String messageBody) {
+    this("0", externalMessageId, preferredSmppServerName, sourceAddress, destAddress, messageBody);
+  }
+
+  public MtMessageJobRunner(final String priority, final String externalMessageId, final String preferredSmppServerName, final String sourceAddress, final String destAddress, final String messageBody) {
+    this.priority = priority;
+    this.externalMessageId = externalMessageId;
+    this.preferredSmppServerName = preferredSmppServerName;
+    this.sourceAddress = sourceAddress;
+    this.destAddress = destAddress;
+    this.messageBody = messageBody;
   }
 
   public void setQueue(final BlockingQueue q) { queue = q; }
@@ -35,7 +41,13 @@ public class MtMessageJobRunner implements Runnable {
   }
 
   private MtMessageJob produce() {
-    final String[] args = {arg1, arg2, arg3, arg4, arg5};
-    return new MtMessageJob(args);
+    return new MtMessageJob(
+      priority,
+      externalMessageId,
+      preferredSmppServerName,
+      sourceAddress,
+      destAddress,
+      messageBody
+    );
   }
 }
