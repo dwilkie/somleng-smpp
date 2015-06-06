@@ -155,6 +155,8 @@ public class Main {
         @Override
         public void run() {
           try {
+            long startThreadTime = System.currentTimeMillis();
+
             logger.info("Preferred SMPP Server Name is: " + preferredSmppServerName);
 
             LoadBalancedList<OutboundClient> clientList = smppServerBalancedLists.get(preferredSmppServerName);
@@ -234,6 +236,9 @@ public class Main {
                 System.getProperty(preferredSmppServerName + "_SMPP_SUBMIT_SM_TIMEOUT", "10000")
               );
 
+              long startSubmitTime = 0;
+              long endSubmitTime = 0;
+
               if(byteMessagesArray != null) {
                 for (int i = 0; i < byteMessagesArray.length; i++) {
                   SubmitSm submit = setupMtMessage(
@@ -254,7 +259,13 @@ public class Main {
                   textBytes,
                   dataCoding
                 );
+
+                startSubmitTime = System.currentTimeMillis();
+
+                // send the response
                 submitSmResponse = session.submit(submit, submitSmTimeout);
+
+                endSubmitTime = System.currentTimeMillis();
               }
 
               final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
@@ -269,9 +280,25 @@ public class Main {
               mtMessageUpdateStatusJob.setUnknownField("dead", false);
               mtMessageUpdateStatusJob.setUnknownField("queue", mtMessageUpdateStatusQueue);
 
+              long startEnqueueResponseTime = System.currentTimeMillis();
+
               jesqueMtClientPool.enqueue(mtMessageUpdateStatusQueue, mtMessageUpdateStatusJob);
 
+              long endEnqueueResponseTime = System.currentTimeMillis();
+
               logger.info("Successfully sent MT and recorded response");
+
+              long endThreadTime = System.currentTimeMillis();
+
+              logger.info("------MT THREAD TIMING ANALYSIS------");
+              logger.info("Total Thread Time (ms):     " + (endThreadTime - startThreadTime));
+
+              if(startSubmitTime > 0) {
+                logger.info("Message Setup Time (ms):    " + (startSubmitTime - startThreadTime));
+                logger.info("Message Sending Time (ms):  " + (endSubmitTime - startSubmitTime));
+              }
+
+              logger.info("Enqueue Response Time (ms): " + (endEnqueueResponseTime - startEnqueueResponseTime));
             }
             else {
               logger.info("No session or session unbound. Waiting 5 seconds then re-enqueuing the job");
