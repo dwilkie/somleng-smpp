@@ -268,12 +268,19 @@ public class Main {
                 endSubmitTime = System.currentTimeMillis();
               }
 
+              int smppErrorCode = submitSmResponse.getCommandStatus();
+              boolean smppSuccess = (smppErrorCode == SmppConstants.STATUS_OK);
+
+              if(!smppSuccess) {
+                logger.warn("Error sending SMS! Error Code: " + smppErrorCode);
+              }
+
               final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
                 mtMessageUpdateStatusWorker,
                 preferredSmppServerName,
                 mtMessageExternalId,
                 submitSmResponse.getMessageId(),
-                submitSmResponse.getCommandStatus() == SmppConstants.STATUS_OK
+                smppSuccess
               );
 
               mtMessageUpdateStatusJob.setUnknownField("retry", numMtMessageUpdateStatusRetries);
