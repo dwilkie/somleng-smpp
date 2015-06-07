@@ -280,7 +280,8 @@ public class Main {
                 preferredSmppServerName,
                 mtMessageExternalId,
                 submitSmResponse.getMessageId(),
-                smppSuccess
+                smppSuccess,
+                SmppConstants.STATUS_MESSAGE_MAP.get(smppErrorCode)
               );
 
               mtMessageUpdateStatusJob.setUnknownField("retry", numMtMessageUpdateStatusRetries);
