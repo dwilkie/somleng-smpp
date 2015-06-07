@@ -270,9 +270,10 @@ public class Main {
 
               int smppErrorCode = submitSmResponse.getCommandStatus();
               boolean smppSuccess = (smppErrorCode == SmppConstants.STATUS_OK);
+              String smppErrorMessage = SmppConstants.STATUS_MESSAGE_MAP.get(smppErrorCode);
 
               if(!smppSuccess) {
-                logger.warn("Error sending SMS! Error Code: " + smppErrorCode);
+                logger.warn("Error sending SMS! Error Code: " + smppErrorCode + ", Error Message: " + smppErrorMessage);
               }
 
               final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
@@ -281,7 +282,7 @@ public class Main {
                 mtMessageExternalId,
                 submitSmResponse.getMessageId(),
                 smppSuccess,
-                SmppConstants.STATUS_MESSAGE_MAP.get(smppErrorCode)
+                smppErrorMessage
               );
 
               mtMessageUpdateStatusJob.setUnknownField("retry", numMtMessageUpdateStatusRetries);
