@@ -5,7 +5,7 @@
   <artifactId>chibi-smsc</artifactId>
   <packaging>jar</packaging>
   <version>0.0.1-SNAPSHOT</version>
-  <name>chbi-smsc</name>
+  <name>chibi-smsc</name>
   <description>Chibi's SMSC</description>
   <url>https://github.com/dwilkie/chibi-smsc</url>
 

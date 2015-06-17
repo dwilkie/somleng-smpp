@@ -10,12 +10,15 @@ import com.cloudhopper.smpp.tlv.TlvConvertException;
 import com.cloudhopper.commons.charset.CharsetUtil;
 import com.cloudhopper.commons.charset.Charset;
 import com.cloudhopper.smpp.util.SmppUtil;
+import com.cloudhopper.smpp.util.DeliveryReceipt;
 
 import com.cloudhopper.commons.gsm.DataCoding;
 import com.cloudhopper.commons.gsm.GsmUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.joda.time.DateTimeZone;
 
 public class DummySmppClientMessageService implements SmppClientMessageService {
 
@@ -50,7 +53,6 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
     } else {
       charset = CharsetUtil.CHARSET_UTF_8;
     }
-
 
     String sourceAddress = pduRequest.getSourceAddress().getAddress();
     String destAddress = pduRequest.getDestAddress().getAddress();
@@ -94,12 +96,31 @@ public class DummySmppClientMessageService implements SmppClientMessageService {
   private void handleDeliveryReceipt(OutboundClient client, DeliverSm pduRequest) {
     Tlv tlvReceiptedMsgId = pduRequest.getOptionalParameter(SmppConstants.TAG_RECEIPTED_MSG_ID);
     Tlv tlvMessageState = pduRequest.getOptionalParameter(SmppConstants.TAG_MSG_STATE);
-    try {
-      String smscIdentifier = tlvReceiptedMsgId.getValueAsString();
-      String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
-      client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
-    } catch(TlvConvertException e) {
-      logger.error("Error while converting TLV", e);
+    if (tlvReceiptedMsgId != null && tlvMessageState != null) {
+      try {
+        String smscIdentifier = tlvReceiptedMsgId.getValueAsString();
+        String deliveryStatus = getDeliveryStatus(tlvMessageState.getValueAsByte());
+        client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
+      } catch(TlvConvertException e) {
+        logger.error("Error while converting TLV", e);
+      }
+    } else {
+      String shortMessage = CharsetUtil.decode(pduRequest.getShortMessage(), CharsetUtil.CHARSET_UTF_8);
+      try {
+        int deliveryReceiptMessageIdRadix = Integer.parseInt(
+          System.getProperty(client.getSmppServerId() + "_SMPP_DELIVERY_RECEIPT_MESSAGE_ID_RADIX", "10")
+        );
+
+        // don't care about the time zone here
+        DeliveryReceipt dlr = DeliveryReceipt.parseShortMessage(shortMessage, DateTimeZone.UTC, false);
+
+        String smscIdentifier = new java.math.BigInteger(dlr.getMessageId(), deliveryReceiptMessageIdRadix).toString();
+
+        String deliveryStatus = getDeliveryStatus(dlr.getState());
+        client.deliveryReceiptReceived(smscIdentifier, deliveryStatus);
+      } catch(Exception e) {
+        logger.error("Error while parsing Delivery Receipt", e);
+      }
     }
   }
 

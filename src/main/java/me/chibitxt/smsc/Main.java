@@ -272,7 +272,15 @@ public class Main {
               boolean smppSuccess = (smppErrorCode == SmppConstants.STATUS_OK);
               String smppErrorMessage = SmppConstants.STATUS_MESSAGE_MAP.get(smppErrorCode);
 
-              if(!smppSuccess) {
+              int submitSmResponseMessageIdRadix = Integer.parseInt(
+                System.getProperty(preferredSmppServerName + "_SMPP_SUBMIT_SM_RESPONSE_MESSAGE_ID_RADIX", "10")
+              );
+
+              String smscIdentifier = submitSmResponse.getMessageId();
+
+              if(smppSuccess) {
+                smscIdentifier = new java.math.BigInteger(smscIdentifier, submitSmResponseMessageIdRadix).toString();
+              } else {
                 logger.warn("Error sending SMS! Error Code: " + smppErrorCode + ", Error Message: " + smppErrorMessage);
               }
 
@@ -280,7 +288,7 @@ public class Main {
                 mtMessageUpdateStatusWorker,
                 preferredSmppServerName,
                 mtMessageExternalId,
-                submitSmResponse.getMessageId(),
+                smscIdentifier,
                 smppSuccess,
                 smppErrorMessage
               );
