@@ -282,6 +282,11 @@ public class Main {
                 smscIdentifier = new java.math.BigInteger(smscIdentifier, submitSmResponseMessageIdRadix).toString();
               } else {
                 logger.warn("Error sending SMS! Error Code: " + smppErrorCode + ", Error Message: " + smppErrorMessage);
+
+                if(setFallbackChannel(preferredSmppServerName, mtMessageJob)) {
+                  mtMessageQueue.put(mtMessageJob);
+                  return;
+                }
               }
 
               final net.greghaines.jesque.Job mtMessageUpdateStatusJob = new net.greghaines.jesque.Job(
@@ -329,11 +334,10 @@ public class Main {
               logger.warn("Exception raised while trying to send MT. Waiting 5 seconds then re-enqueuing the job. " + e + " " + sw.toString());
               Thread.sleep(5000); // Wait 5 seconds
 
-              String fallbackChannel = System.getProperty(preferredSmppServerName + "_SMPP_FALLBACK_CHANNEL");
-              if(fallbackChannel != null) {
-                mtMessageJob.setPreferredSmppServerName(fallbackChannel);
+              if(setFallbackChannel(preferredSmppServerName, mtMessageJob)) {
+                mtMessageQueue.put(mtMessageJob);
               }
-              mtMessageQueue.put(mtMessageJob);
+
             } catch (InterruptedException ex) {
               logger.error("Failed to re-add job to blocking queue", ex);
             }
@@ -341,6 +345,18 @@ public class Main {
           }
         }
       }).start();
+    }
+  }
+
+  private static boolean setFallbackChannel(String preferredChannel, final MtMessageJob mtMessageJob) {
+    String fallbackChannel = System.getProperty(preferredChannel + "_SMPP_FALLBACK_CHANNEL");
+
+    if(fallbackChannel != null) {
+      mtMessageJob.setPreferredSmppServerName(fallbackChannel);
+      return true;
+    }
+    else {
+      return false;
     }
   }
 
