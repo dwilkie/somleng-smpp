@@ -163,3 +163,7 @@ Fill in the following fields with the output from above:
 * Authentication Key
 
 From the example output above `Encryption` is `TripleDES-CBC` (which comes from `enc cbc(des3_ede)`) and `Authentication` is `HMAC-MD5-96` (which comes from `auth-trunc hmac(md5) <Authentication-Key> 96`)
+
+## License
+
+The software is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
